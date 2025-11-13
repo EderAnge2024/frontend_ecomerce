@@ -1,13 +1,13 @@
 import React from 'react';
-import { Stack } from 'expo-router';
+import { CartProvider } from '../components/context/carritoContext';
 import Navigation from './navigation/navigation';
 import Header from './navigation/header';
+
 export default function Layout() {
   return (
-    <>
-    <Header></Header>
-      <Stack.Screen options={{ headerShown: false }} />
-      <Navigation />
-    </>
+    <CartProvider>
+      <Header />
+      <Navigation /> {/* Bottom Tabs sin NavigationContainer */}
+    </CartProvider>
   );
 }

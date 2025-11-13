@@ -1,38 +1,52 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CarritoScreen from '../screens/CarritoScreen';
 
-const Header = ({ onSearch, onCartPress }) => {
+const Header = ({ onSearch }) => {
   const [searchText, setSearchText] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
 
   const handleSearch = (text) => {
     setSearchText(text);
-    if (onSearch) {
-      onSearch(text);
-    }
+    if (onSearch) onSearch(text);
   };
 
+  const openCart = () => setModalVisible(true);
+  const closeCart = () => setModalVisible(false);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar productos..."
-          value={searchText}
-          onChangeText={handleSearch}
-          placeholderTextColor="#999"
-        />
+    <View>
+      <View style={styles.container}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar productos..."
+            value={searchText}
+            onChangeText={handleSearch}
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <TouchableOpacity style={styles.cartButton} onPress={openCart} activeOpacity={0.7}>
+          <Ionicons name="cart" size={28} color="#221329ff" />
+        </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity 
-        style={styles.cartButton}
-        onPress={onCartPress}
-        activeOpacity={0.7}
+
+      {/* Modal flotante */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeCart}
       >
-        <Ionicons name="cart" size={28} color="#221329ff" />
-      </TouchableOpacity>
+        <Pressable style={styles.overlay} onPress={closeCart}>
+          <View style={styles.modalContainer}>
+            <CarritoScreen closeModal={closeCart} />
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -56,17 +70,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     marginRight: 12,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, height: 40, fontSize: 16, color: '#333' },
+  cartButton: { padding: 8 },
+
+  // Modal
+  overlay: {
     flex: 1,
-    height: 40,
-    fontSize: 16,
-    color: '#333',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-start', // se abre desde arriba
+    alignItems: 'flex-end', // ajusta a la derecha
+    paddingTop: 60,
+    paddingRight: 16,
   },
-  cartButton: {
-    padding: 8,
+  modalContainer: {
+    width: 300,
+    maxHeight: 400,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });
 

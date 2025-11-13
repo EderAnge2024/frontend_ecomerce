@@ -41,7 +41,11 @@ const Navigation = () => {
       })}
     >
       <Tab.Screen name="Inicio" component={InicioScreen} />
-      <Tab.Screen name="Menú" component={ProductosScreen} />
+      <Tab.Screen 
+        name="Menu" 
+        component={ProductosScreen} 
+        options={{ tabBarLabel: "Menú" }} 
+      />
       {/* <Tab.Screen name="Carrito" component={CarritoScreen} /> */}
       <Tab.Screen name="Perfil" component={PerfilScreen} />
     </Tab.Navigator>
