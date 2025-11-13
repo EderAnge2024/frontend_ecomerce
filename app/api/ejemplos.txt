@@ -1,0 +1,3 @@
+Fake API DE ECCOMERCE
+https://github.com/keikaavousi/fake-store-api?tab=readme-ov-file
+https://fakestoreapi.com/
