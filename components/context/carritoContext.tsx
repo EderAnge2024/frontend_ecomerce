@@ -33,7 +33,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     cargarCarrito();
   }, []);
 
-  // 🔹 Guardar carrito en AsyncStorage cada vez que cambia
+  // 🔹} Guardar carrito en AsyncStorage cada vez que cambia
   useEffect(() => {
     const guardarCarrito = async () => {
       try {

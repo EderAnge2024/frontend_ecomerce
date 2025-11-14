@@ -43,7 +43,7 @@ const Header = ({ onSearch }) => {
       >
         <Pressable style={styles.overlay} onPress={closeCart}>
           <View style={styles.modalContainer}>
-            <CarritoScreen closeModal={closeCart} />
+            <CarritoScreen closeModal={closeCart} />  
           </View>
         </Pressable>
       </Modal>
