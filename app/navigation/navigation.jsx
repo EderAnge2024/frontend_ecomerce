@@ -1,16 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 
 // Importar pantallas de Prueba
-import InicioScreen from "../screens/InicioScreen";
-import PerfilScreen from "../screens/PerfilScreen";
-import ProductosScreen from "../screens/ProductosScreen";
+import InicioScreen from "../modules/inicio/InicioScreen";
+import PerfilScreen from "../modules/perfil/PerfilScreen";
+import ProductosScreen from "../modules/menu/ProductosScreen";
 import CarritoScreen from "../screens/CarritoScreen";
+import Login from "../auth/Login";
 
 const Tab = createBottomTabNavigator();
 
+
 const Navigation = () => {
+  // Simulación de estado de sesion
+  const [login,setLogin]=useState(false);
+
   // Renderización de iconos de acuerdo a la seccion de menu
   const renderIcon = (routeName, focused, color, size) => {
     const icons = {
@@ -26,7 +31,7 @@ const Navigation = () => {
     // Barra inferior
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        // headerShown: true,
+        headerShown: false,
         // tabBarShowLabel: true,
         tabBarIcon: ({ focused, color, size }) =>
           renderIcon(route.name, focused, color, size),
@@ -40,13 +45,14 @@ const Navigation = () => {
       })}
     >
       <Tab.Screen name="Inicio" component={InicioScreen} />
+      {/*  */}
       <Tab.Screen
-        name="Menu"
+        name="Menú"
         component={ProductosScreen}
         options={{ tabBarLabel: "Menú" }}
       />
       {/* <Tab.Screen name="Carrito" component={CarritoScreen} /> */}
-      <Tab.Screen name="Perfil" component={PerfilScreen} />
+      <Tab.Screen name="Perfil" component={login?PerfilScreen:Login} /> 
     </Tab.Navigator>
   );
 };

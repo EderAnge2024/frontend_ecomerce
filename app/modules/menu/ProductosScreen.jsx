@@ -14,41 +14,39 @@ import { useCart } from '@/components/context/carritoContext';
 //import { API_PRODUCTOS } from '@env';
 const API_PRODUCTOS='https://fakestoreapi.com'
 
-// Componente para el botón del dropdown
-const DropdownButton = ({ categoriaSeleccionada, onPress, isVisible }) => (
-  <TouchableOpacity style={styles.dropdownButton} onPress={onPress}>
-    <Text style={styles.dropdownText}>
-      {categoriaSeleccionada === 'all'
-        ? 'Todas las categorías'
-        : categoriaSeleccionada.charAt(0).toUpperCase() +
-          categoriaSeleccionada.slice(1)}
-    </Text>
-    <Ionicons
-      name={isVisible ? 'chevron-up' : 'chevron-down'}
-      size={20}
-      color="#8A00D4"
-    />
-  </TouchableOpacity>
-);
+// Componente para card de categoría
+const CategoriaCard = ({ categoria, isActive, onPress }) => {
+  const iconos = {
+    all: 'grid-outline',
+    electronics: 'phone-portrait-outline',
+    jewelery: 'diamond-outline',
+    "men's clothing": 'shirt-outline',
+    "women's clothing": 'woman-outline',
+  };
 
-// Componente para ítem de categoría
-const CategoriaItem = ({ categoria, isActive, onPress }) => (
-  <TouchableOpacity
-    style={[styles.dropdownItem, isActive && styles.dropdownItemActive]}
-    onPress={onPress}
-  >
-    <Text
-      style={[
-        styles.dropdownItemText,
-        isActive && styles.dropdownItemTextActive,
-      ]}
+  return (
+    <TouchableOpacity
+      style={[styles.categoriaCard, isActive && styles.categoriaCardActive]}
+      onPress={onPress}
     >
-      {categoria === 'all'
-        ? 'Todas las categorías'
-        : categoria.charAt(0).toUpperCase() + categoria.slice(1)}
-    </Text>
-  </TouchableOpacity>
-);
+      <Ionicons
+        name={iconos[categoria] || 'pricetag-outline'}
+        size={28}
+        color={isActive ? '#fff' : '#8A00D4'}
+      />
+      <Text
+        style={[
+          styles.categoriaCardText,
+          isActive && styles.categoriaCardTextActive,
+        ]}
+      >
+        {categoria === 'all'
+          ? 'Todas'
+          : categoria.charAt(0).toUpperCase() + categoria.slice(1)}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 // Tarjeta de producto
 const ProductoCard = ({ item, onAgregar }) => (
@@ -83,7 +81,6 @@ export default function ProductosScreen() {
   const [categorias, setCategorias] = useState([]);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('all');
   const [cargando, setCargando] = useState(true);
-  const [dropdownVisible, setDropdownVisible] = useState(false);
   const { agregarAlCarrito } = useCart();
 
   // Cargar productos
@@ -113,7 +110,6 @@ export default function ProductosScreen() {
   // Manejar selección de categoría
   const handleCategoriaSelect = (cat) => {
     setCategoriaSeleccionada(cat);
-    setDropdownVisible(false);
   };
 
   if (cargando) {
@@ -127,28 +123,22 @@ export default function ProductosScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Filtro por categoría */}
-      <View style={styles.filterContainer}>
-        <DropdownButton
-          categoriaSeleccionada={categoriaSeleccionada}
-          onPress={() => setDropdownVisible(!dropdownVisible)}
-          isVisible={dropdownVisible}
-        />
-
-        {dropdownVisible && (
-          <View style={styles.dropdownList}>
-            <ScrollView>
-              {categorias.map((cat) => (
-                <CategoriaItem
-                  key={cat}
-                  categoria={cat}
-                  isActive={categoriaSeleccionada === cat}
-                  onPress={() => handleCategoriaSelect(cat)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        )}
+      {/* Cards de categorías */}
+      <View style={styles.categoriasContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriasScroll}
+        >
+          {categorias.map((cat) => (
+            <CategoriaCard
+              key={cat}
+              categoria={cat}
+              isActive={categoriaSeleccionada === cat}
+              onPress={() => handleCategoriaSelect(cat)}
+            />
+          ))}
+        </ScrollView>
       </View>
 
       {/* Lista de productos */}
@@ -174,45 +164,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
     paddingTop: 10,
   },
-  filterContainer: {
-    paddingHorizontal: 15,
-    marginBottom: 10,
+  categoriasContainer: {
+    marginBottom: 15,
   },
-  dropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  categoriasScroll: {
+    paddingHorizontal: 15,
+    gap: 10,
+  },
+  categoriaCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 90,
+    borderWidth: 2,
+    borderColor: '#8A00D4',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
-  dropdownText: {
-    color: '#333',
-    fontSize: 15,
+  categoriaCardActive: {
+    backgroundColor: '#8A00D4',
+    borderColor: '#8A00D4',
+  },
+  categoriaCardText: {
+    marginTop: 6,
+    fontSize: 12,
     fontWeight: '600',
-  },
-  dropdownList: {
-    backgroundColor: '#fff',
-    marginTop: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    maxHeight: 150,
-  },
-  dropdownItem: {
-    padding: 12,
-  },
-  dropdownItemActive: {
-    backgroundColor: '#f3e8ff',
-  },
-  dropdownItemText: {
-    color: '#444',
-  },
-  dropdownItemTextActive: {
     color: '#8A00D4',
-    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  categoriaCardTextActive: {
+    color: '#fff',
   },
   row: {
     justifyContent: 'space-around',
