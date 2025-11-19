@@ -8,34 +8,81 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../components/context/authContext';
+import { useRouter } from 'expo-router';
 
-const Register = () => {
+const Register = ({ onSuccess }) => {
   const [nombre, setNombre] = useState('');
-  const [apellidos, setApellidos] = useState('');
-  const [celular, setCelular] = useState('');
-  const [email, setEmail] = useState('');
-  const [dni, setDni] = useState('');
-  const [fechaNacimiento, setFechaNacimiento] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [tipoUsuario, setTipoUsuario] = useState('comprador'); // 'comprador' o 'vendedor'
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const router = useRouter();
 
-  const handleRegister = () => {
-    // Aquí puedes agregar la lógica de registro
-    console.log({
-      nombre,
-      apellidos,
-      celular,
-      email,
-      dni,
-      fechaNacimiento,
-      tipoUsuario,
-      password,
-    });
+  const handleRegister = async () => {
+    // Validaciones
+    if (!nombre || !correo || !usuario || !password) {
+      alert('Por favor completa los campos obligatorios: nombre, correo, usuario y contraseña');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (password.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const userData = {
+        nombre,
+        apellido: apellido || '',
+        correo,
+        telefono: telefono || '',
+        direccion: direccion || '',
+        rol: 'cliente', // Por defecto siempre cliente
+        usuario,
+        contrasena: password,
+      };
+
+      const response = await register(userData);
+      
+      if (response.success) {
+        alert('¡Registro exitoso! Tu cuenta ha sido creada correctamente');
+        
+        // Si hay callback onSuccess (cuando se usa en modal), ejecutarlo
+        if (onSuccess) {
+          onSuccess();
+        }
+        // No navegar aquí - el componente padre maneja la navegación
+      } else {
+        alert(response.message || 'No se pudo crear la cuenta');
+      }
+    } catch (error) {
+      console.error('Error en registro:', error);
+      alert('Ocurrió un error al registrar la cuenta');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = () => {
+    router.push('/auth/Login');
   };
 
   return (
@@ -66,58 +113,54 @@ const Register = () => {
             />
           </View>
 
-          {/* Campo de Apellidos */}
+          {/* Campo de Apellido */}
           <View style={styles.inputContainer}>
             <Ionicons name="people-outline" size={20} color="#666" style={styles.icon} />
             <TextInput
               style={styles.input}
-              placeholder="Apellidos"
+              placeholder="Apellido (opcional)"
               placeholderTextColor="#999"
-              value={apellidos}
-              onChangeText={setApellidos}
+              value={apellido}
+              onChangeText={setApellido}
               autoCapitalize="words"
             />
           </View>
 
-          {/* Campo de DNI */}
+          {/* Campo de Usuario */}
           <View style={styles.inputContainer}>
-            <Ionicons name="card-outline" size={20} color="#666" style={styles.icon} />
+            <Ionicons name="at-outline" size={20} color="#666" style={styles.icon} />
             <TextInput
               style={styles.input}
-              placeholder="DNI"
+              placeholder="Usuario *"
               placeholderTextColor="#999"
-              value={dni}
-              onChangeText={setDni}
-              keyboardType="numeric"
-              maxLength={8}
+              value={usuario}
+              onChangeText={setUsuario}
+              autoCapitalize="none"
             />
           </View>
 
-          {/* Campo de Fecha de Nacimiento */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="calendar-outline" size={20} color="#666" style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Fecha de Nacimiento (DD/MM/AAAA)"
-              placeholderTextColor="#999"
-              value={fechaNacimiento}
-              onChangeText={setFechaNacimiento}
-              keyboardType="numeric"
-              maxLength={10}
-            />
-          </View>
-
-          {/* Campo de Número de Celular */}
+          {/* Campo de Teléfono */}
           <View style={styles.inputContainer}>
             <Ionicons name="call-outline" size={20} color="#666" style={styles.icon} />
             <TextInput
               style={styles.input}
-              placeholder="Número de celular"
+              placeholder="Teléfono (opcional)"
               placeholderTextColor="#999"
-              value={celular}
-              onChangeText={setCelular}
+              value={telefono}
+              onChangeText={setTelefono}
               keyboardType="phone-pad"
-              maxLength={9}
+            />
+          </View>
+
+          {/* Campo de Dirección */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="location-outline" size={20} color="#666" style={styles.icon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Dirección (opcional)"
+              placeholderTextColor="#999"
+              value={direccion}
+              onChangeText={setDireccion}
             />
           </View>
 
@@ -126,10 +169,10 @@ const Register = () => {
             <Ionicons name="mail-outline" size={20} color="#666" style={styles.icon} />
             <TextInput
               style={styles.input}
-              placeholder="Correo electrónico"
+              placeholder="Correo electrónico *"
               placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
+              value={correo}
+              onChangeText={setCorreo}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -184,65 +227,23 @@ const Register = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Selector de Tipo de Usuario */}
-          <View style={styles.userTypeContainer}>
-            <Text style={styles.userTypeLabel}>Tipo de Usuario</Text>
-            <View style={styles.userTypeButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  tipoUsuario === 'comprador' && styles.userTypeButtonActive,
-                ]}
-                onPress={() => setTipoUsuario('comprador')}
-              >
-                <Ionicons
-                  name="cart-outline"
-                  size={24}
-                  color={tipoUsuario === 'comprador' ? '#fff' : '#221329'}
-                />
-                <Text
-                  style={[
-                    styles.userTypeButtonText,
-                    tipoUsuario === 'comprador' && styles.userTypeButtonTextActive,
-                  ]}
-                >
-                  Comprador
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  tipoUsuario === 'vendedor' && styles.userTypeButtonActive,
-                ]}
-                onPress={() => setTipoUsuario('vendedor')}
-              >
-                <Ionicons
-                  name="storefront-outline"
-                  size={24}
-                  color={tipoUsuario === 'vendedor' ? '#fff' : '#221329'}
-                />
-                <Text
-                  style={[
-                    styles.userTypeButtonText,
-                    tipoUsuario === 'vendedor' && styles.userTypeButtonTextActive,
-                  ]}
-                >
-                  Vendedor
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* Botón de Registro */}
-          <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
-            <Text style={styles.registerButtonText}>Registrarse</Text>
+          <TouchableOpacity 
+            style={[styles.registerButton, loading && styles.buttonDisabled]} 
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.registerButtonText}>Registrarse</Text>
+            )}
           </TouchableOpacity>
 
           {/* Link a Login */}
           <View style={styles.loginLinkContainer}>
             <Text style={styles.loginLinkText}>¿Ya tienes cuenta? </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={handleLogin}>
               <Text style={styles.loginLink}>Inicia Sesión</Text>
             </TouchableOpacity>
           </View>
@@ -363,6 +364,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#221329',
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });
 

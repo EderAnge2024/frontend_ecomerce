@@ -1,20 +1,20 @@
-import React, { useState } from "react";
+import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../components/context/authContext";
 
-// Importar pantallas de Prueba
+// Importar pantallas
 import InicioScreen from "../modules/inicio/InicioScreen";
 import PerfilScreen from "../modules/perfil/PerfilScreen";
 import ProductosScreen from "../modules/menu/ProductosScreen";
 import CarritoScreen from "../screens/CarritoScreen";
 import Login from "../auth/Login";
+import AdminHome from "../modules/admin/AdminHome";
 
 const Tab = createBottomTabNavigator();
 
-
 const Navigation = () => {
-  // Simulación de estado de sesion
-  const [login,setLogin]=useState(false);
+  const { isAuthenticated } = useAuth();
 
   // Renderización de iconos de acuerdo a la seccion de menu
   const renderIcon = (routeName, focused, color, size) => {
@@ -28,11 +28,9 @@ const Navigation = () => {
   };
 
   return (
-    // Barra inferior
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        // tabBarShowLabel: true,
         tabBarIcon: ({ focused, color, size }) =>
           renderIcon(route.name, focused, color, size),
         tabBarActiveTintColor: "#221329ff",
@@ -45,14 +43,23 @@ const Navigation = () => {
       })}
     >
       <Tab.Screen name="Inicio" component={InicioScreen} />
-      {/*  */}
       <Tab.Screen
         name="Menú"
         component={ProductosScreen}
         options={{ tabBarLabel: "Menú" }}
       />
-      {/* <Tab.Screen name="Carrito" component={CarritoScreen} /> */}
-      <Tab.Screen name="Perfil" component={login?PerfilScreen:Login} /> 
+
+      <Tab.Screen name="Perfil" component={isAuthenticated ? PerfilScreen : Login} />
+      
+      {/* Pantalla de Admin (sin tab) */}
+      <Tab.Screen 
+        name="AdminHome" 
+        component={AdminHome}
+        options={{
+          tabBarButton: () => null, // Ocultar del tab bar
+          tabBarStyle: { display: 'none' }, // Ocultar tab bar en esta pantalla
+        }}
+      />
     </Tab.Navigator>
   );
 };

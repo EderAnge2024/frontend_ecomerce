@@ -8,23 +8,67 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../components/context/authContext';
+import { useRouter } from 'expo-router';
+import Register from './Register';
+import RecuperarPassword from './RecuperarPassword';
 
-const Login = () => {
-  const [email, setEmail] = useState('');
+const Login = ({ onSuccess, onForgotPassword, onRegister }) => {
+  const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const { login } = useAuth();
+  const router = useRouter();
 
-  const handleLogin = () => {
-    // Aquí puedes agregar la lógica de autenticación
-    console.log('Email:', email);
-    console.log('Password:', password);
+  const handleLogin = async () => {
+    if (!usuario || !password) {
+      alert('Por favor completa todos los campos');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await login(usuario, password);
+      
+      if (response.success) {
+        // Si hay callback onSuccess (cuando se usa en modal), ejecutarlo
+        if (onSuccess) {
+          onSuccess();
+        }
+        // No navegar aquí - el componente padre maneja la navegación
+      } else {
+        alert(response.message || 'Usuario o contraseña incorrectos');
+      }
+    } catch (error) {
+      console.error('Error en login:', error);
+      alert('Ocurrió un error al iniciar sesión');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
-    // Aquí puedes agregar la lógica para recuperar contraseña
-    console.log('Recuperar contraseña');
+    if (onForgotPassword) {
+      onForgotPassword();
+    } else {
+      setShowRecoveryModal(true);
+    }
+  };
+
+  const handleRegister = () => {
+    if (onRegister) {
+      onRegister();
+    } else {
+      setShowRegisterModal(true);
+    }
   };
 
   return (
@@ -41,18 +85,18 @@ const Login = () => {
           <Text style={styles.title}>Iniciar Sesión</Text>
           <Text style={styles.subtitle}>Bienvenido de nuevo</Text>
 
-          {/* Campo de Correo */}
+
+
+          {/* Campo de Usuario */}
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#666" style={styles.icon} />
+            <Ionicons name="person-outline" size={20} color="#666" style={styles.icon} />
             <TextInput
               style={styles.input}
-              placeholder="Correo electrónico"
+              placeholder="Usuario"
               placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
+              value={usuario}
+              onChangeText={setUsuario}
               autoCapitalize="none"
-              autoComplete="email"
             />
           </View>
 
@@ -85,17 +129,58 @@ const Login = () => {
             <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
-          {/* Botón Olvidaste tu contraseña */}
-          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
-            <Text style={styles.forgotText}>Registrate</Text>
+          {/* Botón de Login */}
+          <TouchableOpacity 
+            style={[styles.loginButton, loading && styles.buttonDisabled]} 
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+            )}
           </TouchableOpacity>
 
-          {/* Botón de Login */}
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-          </TouchableOpacity>
+          {/* Link a Registro */}
+          <View style={styles.registerLinkContainer}>
+            <Text style={styles.registerLinkText}>¿No tienes cuenta? </Text>
+            <TouchableOpacity onPress={handleRegister}>
+              <Text style={styles.registerLink}>Regístrate</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
+
+      {/* Modal de Registro */}
+      <Modal visible={showRegisterModal} animationType="slide">
+        <View style={styles.modalFullScreen}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowRegisterModal(false)} 
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={32} color="#221329" />
+            </TouchableOpacity>
+          </View>
+          <Register onSuccess={() => setShowRegisterModal(false)} />
+        </View>
+      </Modal>
+
+      {/* Modal de Recuperar Contraseña */}
+      <Modal visible={showRecoveryModal} animationType="slide">
+        <View style={styles.modalFullScreen}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowRecoveryModal(false)} 
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={32} color="#221329" />
+            </TouchableOpacity>
+          </View>
+          <RecuperarPassword />
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -168,6 +253,39 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  registerLinkContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  registerLinkText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  registerLink: {
+    fontSize: 14,
+    color: '#221329',
+    fontWeight: '600',
+  },
+  modalFullScreen: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 16,
+    paddingTop: 50,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  closeButton: {
+    padding: 8,
   },
 });
 

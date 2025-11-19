@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createPedido, createPedidoProducto } from "../services/store/pedidos";
 
 export interface Producto {
   id: number;
   nombre: string;
   precio: number;
   imagen?: string;
+  cantidad?: number;
 }
 
 interface CartContextProps {
@@ -13,6 +15,9 @@ interface CartContextProps {
   agregarAlCarrito: (producto: Producto) => void;
   eliminarDelCarrito: (id: number) => void;
   limpiarCarrito: () => void;
+  finalizarCompra: (id_usuario: number) => Promise<{ success: boolean; message: string; pedido?: any }>;
+  calcularTotal: () => number;
+  cantidadProductos: () => number;
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined);
@@ -46,7 +51,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [carrito]);
 
   const agregarAlCarrito = (producto: Producto) => {
-    setCarrito((prev) => [...prev, producto]);
+    setCarrito((prev) => {
+      // Verificar si el producto ya existe en el carrito
+      const existente = prev.find((p) => p.id === producto.id);
+      if (existente) {
+        // Si existe, incrementar cantidad
+        return prev.map((p) =>
+          p.id === producto.id
+            ? { ...p, cantidad: (p.cantidad || 1) + 1 }
+            : p
+        );
+      }
+      // Si no existe, agregarlo con cantidad 1
+      return [...prev, { ...producto, cantidad: 1 }];
+    });
   };
 
   const eliminarDelCarrito = (id: number) => {
@@ -55,9 +73,74 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const limpiarCarrito = () => setCarrito([]);
 
+  const calcularTotal = () => {
+    return carrito.reduce((total, producto) => {
+      return total + producto.precio * (producto.cantidad || 1);
+    }, 0);
+  };
+
+  const cantidadProductos = () => {
+    return carrito.reduce((total, producto) => {
+      return total + (producto.cantidad || 1);
+    }, 0);
+  };
+
+  const finalizarCompra = async (id_usuario: number) => {
+    try {
+      if (carrito.length === 0) {
+        return { success: false, message: 'El carrito está vacío' };
+      }
+
+      // Calcular el total del pedido
+      const total = calcularTotal();
+
+      // Crear el pedido
+      const pedidoResponse = await createPedido({
+        id_usuario,
+        total,
+      });
+
+      if (!pedidoResponse.success) {
+        return { success: false, message: 'Error al crear el pedido' };
+      }
+
+      const pedido = pedidoResponse.pedido;
+
+      // Crear los productos del pedido usando el ID de la API externa
+      for (const producto of carrito) {
+        await createPedidoProducto({
+          id_pedido: pedido.id_pedido,
+          id_producto: producto.id, // ID del producto de fakestoreapi
+          cantidad: producto.cantidad || 1,
+          precio: producto.precio,
+        });
+      }
+
+      // Limpiar el carrito después de crear el pedido
+      limpiarCarrito();
+
+      return {
+        success: true,
+        message: 'Pedido creado exitosamente',
+        pedido,
+      };
+    } catch (error) {
+      console.error('Error al finalizar compra:', error);
+      return { success: false, message: 'Error al procesar el pedido' };
+    }
+  };
+
   return (
     <CartContext.Provider
-      value={{ carrito, agregarAlCarrito, eliminarDelCarrito, limpiarCarrito }}
+      value={{
+        carrito,
+        agregarAlCarrito,
+        eliminarDelCarrito,
+        limpiarCarrito,
+        finalizarCompra,
+        calcularTotal,
+        cantidadProductos,
+      }}
     >
       {children}
     </CartContext.Provider>
