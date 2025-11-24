@@ -17,6 +17,7 @@ import { useAuth } from '../../components/context/authContext';
 import { useRouter } from 'expo-router';
 import Register from './Register';
 import RecuperarPassword from './RecuperarPassword';
+import AdminHome from '../modules/admin/AdminHome';
 
 const Login = ({ onSuccess, onForgotPassword, onRegister }) => {
   const [usuario, setUsuario] = useState('');
@@ -25,7 +26,8 @@ const Login = ({ onSuccess, onForgotPassword, onRegister }) => {
   const [loading, setLoading] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
-  const { login } = useAuth();
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const { login, isAdmin } = useAuth();
   const router = useRouter();
 
   const handleLogin = async () => {
@@ -39,11 +41,17 @@ const Login = ({ onSuccess, onForgotPassword, onRegister }) => {
       const response = await login(usuario, password);
       
       if (response.success) {
-        // Si hay callback onSuccess (cuando se usa en modal), ejecutarlo
-        if (onSuccess) {
-          onSuccess();
+        // Verificar si el usuario es administrador
+        if (isAdmin()) {
+          console.log('✅ Usuario administrador detectado, mostrando panel admin');
+          setShowAdminPanel(true);
+        } else {
+          // Si hay callback onSuccess (cuando se usa en modal), ejecutarlo
+          if (onSuccess) {
+            onSuccess();
+          }
+          // No navegar aquí - el componente padre maneja la navegación
         }
-        // No navegar aquí - el componente padre maneja la navegación
       } else {
         alert(response.message || 'Usuario o contraseña incorrectos');
       }
@@ -70,6 +78,11 @@ const Login = ({ onSuccess, onForgotPassword, onRegister }) => {
       setShowRegisterModal(true);
     }
   };
+
+  // Si el usuario es admin, mostrar el panel de administración
+  if (showAdminPanel) {
+    return <AdminHome />;
+  }
 
   return (
     <KeyboardAvoidingView

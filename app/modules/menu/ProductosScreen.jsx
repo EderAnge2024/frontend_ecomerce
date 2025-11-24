@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '@/components/context/carritoContext';
+import { useSearch } from '../../context/searchContext';
 //import { API_PRODUCTOS } from '@env';
 const API_PRODUCTOS='https://fakestoreapi.com'
 
@@ -82,6 +83,7 @@ export default function ProductosScreen() {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('all');
   const [cargando, setCargando] = useState(true);
   const { agregarAlCarrito } = useCart();
+  const { searchTerm } = useSearch();
 
   // Cargar productos
   useEffect(() => {
@@ -101,11 +103,19 @@ export default function ProductosScreen() {
       .then((data) => setCategorias(['all', ...data]));
   }, []);
 
-  // Filtrar productos
-  const productosFiltrados =
+  // Filtrar productos por categoría
+  let productosFiltrados =
     categoriaSeleccionada === 'all'
       ? productos
       : productos.filter((p) => p.category === categoriaSeleccionada);
+
+  // Filtrar por búsqueda
+  if (searchTerm) {
+    productosFiltrados = productosFiltrados.filter((p) =>
+      p.title.toLowerCase().includes(searchTerm) ||
+      p.category.toLowerCase().includes(searchTerm)
+    );
+  }
 
   // Manejar selección de categoría
   const handleCategoriaSelect = (cat) => {
@@ -142,17 +152,28 @@ export default function ProductosScreen() {
       </View>
 
       {/* Lista de productos */}
-      <FlatList
-        data={productosFiltrados}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <ProductoCard item={item} onAgregar={agregarAlCarrito} />
-        )}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 80 }}
-      />
+      {productosFiltrados.length === 0 ? (
+        <View style={styles.noResults}>
+          <Ionicons name="search-outline" size={60} color="#ccc" />
+          <Text style={styles.noResultsText}>
+            {searchTerm 
+              ? `No se encontraron productos para "${searchTerm}"`
+              : 'No hay productos en esta categoría'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={productosFiltrados}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <ProductoCard item={item} onAgregar={agregarAlCarrito} />
+          )}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 80 }}
+        />
+      )}
     </View>
   );
 }
@@ -256,5 +277,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  noResults: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  noResultsText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingHorizontal: 40,
   },
 });

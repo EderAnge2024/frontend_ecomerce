@@ -2,14 +2,21 @@ import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CarritoScreen from '../screens/CarritoScreen';
+import { useSearch } from '../context/searchContext';
 
-const Header = ({ onSearch }) => {
+const Header = () => {
   const [searchText, setSearchText] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+  const { updateSearch, clearSearch } = useSearch();
 
   const handleSearch = (text) => {
     setSearchText(text);
-    if (onSearch) onSearch(text);
+    updateSearch(text);
+  };
+
+  const handleClearSearch = () => {
+    setSearchText('');
+    clearSearch();
   };
 
   const openCart = () => setModalVisible(true);
@@ -27,6 +34,11 @@ const Header = ({ onSearch }) => {
             onChangeText={handleSearch}
             placeholderTextColor="#999"
           />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={handleClearSearch} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity style={styles.cartButton} onPress={openCart} activeOpacity={0.7}>
@@ -72,6 +84,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, height: 40, fontSize: 16, color: '#333' },
+  clearButton: { padding: 4 },
   cartButton: { padding: 8 },
 
   // Modal

@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useCart } from "@/components/context/carritoContext";
 import { useAuth } from "@/components/context/authContext";
+import { useSearch } from "../../context/searchContext";
 import RecuperarPassword from '../../auth/RecuperarPassword';
 
 const API_PRODUCTOS = 'https://fakestoreapi.com';
@@ -33,6 +34,7 @@ export default function InicioScreen() {
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const { agregarAlCarrito } = useCart();
   const { isAuthenticated, isAdmin, login } = useAuth();
+  const { searchTerm } = useSearch();
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -45,8 +47,16 @@ export default function InicioScreen() {
       .catch(() => setCargando(false));
   }, []);
 
+  // 🔹 Filtrar productos por búsqueda
+  const productosFiltrados = searchTerm
+    ? productos.filter((p) =>
+        p.title.toLowerCase().includes(searchTerm) ||
+        p.category.toLowerCase().includes(searchTerm)
+      )
+    : productos;
+
   // 🔹 Filtrar los más comprados
-  const masComprados = productos
+  const masComprados = productosFiltrados
     .sort((a, b) => b.rating.count - a.rating.count)
     .slice(0, 6); // top 6
 
@@ -180,18 +190,18 @@ export default function InicioScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.container}>
-        {/* Botón flotante de Admin */}
+        {/* Botón flotante de Admin
         <TouchableOpacity style={styles.adminButton} onPress={handleAdminAccess}>
           <Ionicons name="shield-checkmark" size={28} color="#fff" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
-        {/* Botón temporal de debug - ELIMINAR EN PRODUCCIÓN */}
+        {/* Botón temporal de debug - ELIMINAR EN PRODUCCIÓN
         <TouchableOpacity 
           style={styles.debugButton} 
           onPress={clearAsyncStorage}
         >
           <Text style={styles.debugButtonText}>🗑️ Limpiar Storage (Debug)</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
       {/* 🔹 Banner */}
       <View style={styles.bannerContainer}>
@@ -233,9 +243,17 @@ export default function InicioScreen() {
 
       {/* 🔹 Sección de todos los productos */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Todos los productos</Text>
-        <View style={styles.productsGrid}>
-          {productos.map((item) => (
+        <Text style={styles.sectionTitle}>
+          {searchTerm ? `Resultados para "${searchTerm}"` : 'Todos los productos'}
+        </Text>
+        {productosFiltrados.length === 0 ? (
+          <View style={styles.noResults}>
+            <Ionicons name="search-outline" size={60} color="#ccc" />
+            <Text style={styles.noResultsText}>No se encontraron productos</Text>
+          </View>
+        ) : (
+          <View style={styles.productsGrid}>
+            {productosFiltrados.map((item) => (
             <View key={item.id} style={styles.card}>
               <Image source={{ uri: item.image }} style={styles.cardImage} />
               <Text numberOfLines={2} style={styles.cardTitle}>
@@ -257,7 +275,8 @@ export default function InicioScreen() {
               </TouchableOpacity>
             </View>
           ))}
-        </View>
+          </View>
+        )}
       </View>
 
       <View style={{ height: 30 }} />
@@ -414,11 +433,10 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 15, marginBottom: 20 },
   sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10 },
   card: {
-    width: width * 0.45,
+    width: (width - 45) / 2, // Calcula el ancho para 2 columnas con padding
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 10,
-    marginRight: 15,
     marginBottom: 15,
     shadowColor: "#000",
     shadowOpacity: 0.08,
@@ -608,5 +626,16 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 8,
+  },
+  noResults: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  noResultsText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '500',
   },
 });

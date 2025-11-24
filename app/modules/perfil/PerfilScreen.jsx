@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../components/context/authContext';
@@ -7,6 +7,9 @@ import { getPedidosByUser } from '../../../components/services/store/pedidos';
 import Login from '../../auth/Login';
 import Register from '../../auth/Register';
 import RecuperarPassword from '../../auth/RecuperarPassword';
+import MyProfile from './myprofile';
+import MyDirection from './mydirection';
+import MyContactenos from './mycontactenos';
 
 export default function PerfilScreen() {
   const { user, logout, isAdmin, isAuthenticated } = useAuth();
@@ -18,6 +21,9 @@ export default function PerfilScreen() {
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showPedidosModal, setShowPedidosModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showDirectionModal, setShowDirectionModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   
   // Estados para pedidos
   const [pedidos, setPedidos] = useState([]);
@@ -230,6 +236,36 @@ export default function PerfilScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Mis Perfil */}
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => setShowProfileModal(true)}
+          >
+            <View style={styles.menuIcon}>
+              <Ionicons name="person-outline" size={24} color="#221329" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Mi Perfil</Text>
+              <Text style={styles.menuSubtitle}>Editar información personal</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#ccc" />
+          </TouchableOpacity>
+          
+          {/* Mis Direcciones */}
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => setShowDirectionModal(true)}
+          >
+            <View style={styles.menuIcon}>
+              <Ionicons name="location-outline" size={24} color="#221329" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Mis Direcciones</Text>
+              <Text style={styles.menuSubtitle}>Gestionar direcciones de envío</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#ccc" />
+          </TouchableOpacity>
+
           {/* Mis Pedidos */}
           <TouchableOpacity 
             style={styles.menuItem}
@@ -241,6 +277,21 @@ export default function PerfilScreen() {
             <View style={styles.menuContent}>
               <Text style={styles.menuTitle}>Mis Pedidos</Text>
               <Text style={styles.menuSubtitle}>Ver historial de compras</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#ccc" />
+          </TouchableOpacity>
+
+          {/* Contactenos */}
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => setShowContactModal(true)}
+          >
+            <View style={styles.menuIcon}>
+              <Ionicons name="call-outline" size={24} color="#221329" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Contáctenos</Text>
+              <Text style={styles.menuSubtitle}>Comunícate con nosotros</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#ccc" />
           </TouchableOpacity>
@@ -330,6 +381,51 @@ export default function PerfilScreen() {
               </ScrollView>
             )}
           </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Mi Perfil */}
+      <Modal visible={showProfileModal} animationType="slide">
+        <View style={styles.modalFullScreen}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowProfileModal(false)} 
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={32} color="#221329" />
+            </TouchableOpacity>
+          </View>
+          <MyProfile />
+        </View>
+      </Modal>
+
+      {/* Modal de Mis Direcciones */}
+      <Modal visible={showDirectionModal} animationType="slide">
+        <View style={styles.modalFullScreen}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowDirectionModal(false)} 
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={32} color="#221329" />
+            </TouchableOpacity>
+          </View>
+          <MyDirection />
+        </View>
+      </Modal>
+
+      {/* Modal de Contáctenos */}
+      <Modal visible={showContactModal} animationType="slide">
+        <View style={styles.modalFullScreen}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowContactModal(false)} 
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={32} color="#221329" />
+            </TouchableOpacity>
+          </View>
+          <MyContactenos />
         </View>
       </Modal>
     </View>

@@ -51,13 +51,12 @@ const Navigation = () => {
 
       <Tab.Screen name="Perfil" component={isAuthenticated ? PerfilScreen : Login} />
       
-      {/* Pantalla de Admin (sin tab) */}
+      {/* Pantalla de Admin (invisible en tab bar) */}
       <Tab.Screen 
         name="AdminHome" 
         component={AdminHome}
         options={{
-          tabBarButton: () => null, // Ocultar del tab bar
-          tabBarStyle: { display: 'none' }, // Ocultar tab bar en esta pantalla
+          tabBarButton: () => null, // Completamente invisible en el tab bar
         }}
       />
     </Tab.Navigator>

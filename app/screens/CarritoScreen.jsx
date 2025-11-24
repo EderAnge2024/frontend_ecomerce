@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, SafeAreaView } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from "@/components/context/carritoContext";
 import { useAuth } from "@/components/context/authContext";
@@ -15,6 +15,8 @@ export default function CarritoScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifying, setVerifying] = useState(false);
+
+
 
   const handleFinalizarCompra = async () => {
     if (carrito.length === 0) {
@@ -89,37 +91,48 @@ export default function CarritoScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="cart" size={32} color="#221329" />
-        <Text style={styles.headerTitle}>Mi Carrito</Text>
-        {carrito.length > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{cantidadProductos()}</Text>
-          </View>
-        )}
-      </View>
-
+    <SafeAreaView style={styles.container}>
       {carrito.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="cart-outline" size={100} color="#ccc" />
-          <Text style={styles.emptyText}>Tu carrito está vacío</Text>
-          <Text style={styles.emptySubtext}>Agrega productos para comenzar</Text>
-        </View>
+        <>
+          <View style={styles.header}>
+            <Ionicons name="cart" size={32} color="#221329" />
+            <Text style={styles.headerTitle}>Mi Carrito</Text>
+          </View>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="cart-outline" size={100} color="#ccc" />
+            <Text style={styles.emptyText}>Tu carrito está vacío</Text>
+            <Text style={styles.emptySubtext}>Agrega productos para comenzar</Text>
+          </View>
+        </>
       ) : (
         <>
           <FlatList
             data={carrito}
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={true}
+            ListHeaderComponent={
+              <View style={styles.header}>
+                <Ionicons name="cart" size={32} color="#221329" />
+                <Text style={styles.headerTitle}>Mi Carrito</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{cantidadProductos()}</Text>
+                </View>
+              </View>
+            }
+            ListFooterComponent={
+              <View style={styles.footerSpacer} />
+            }
             renderItem={({ item }) => (
               <View style={styles.item}>
                 <View style={styles.itemInfo}>
-                  <Text style={styles.name}>{item.nombre}</Text>
-                  <Text style={styles.price}>S/ {item.precio.toFixed(2)}</Text>
-                  <Text style={styles.cantidad}>Cantidad: {item.cantidad || 1}</Text>
+                  <Text style={styles.name} numberOfLines={2}>{item.nombre}</Text>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.price}>S/ {item.precio.toFixed(2)}</Text>
+                    <Text style={styles.cantidad}>x {item.cantidad || 1}</Text>
+                  </View>
                   <Text style={styles.subtotal}>
-                    Subtotal: S/ {(item.precio * (item.cantidad || 1)).toFixed(2)}
+                    S/ {(item.precio * (item.cantidad || 1)).toFixed(2)}
                   </Text>
                 </View>
 
@@ -127,7 +140,7 @@ export default function CarritoScreen() {
                   style={styles.deleteButton}
                   onPress={() => eliminarDelCarrito(item.id)}
                 >
-                  <Ionicons name="trash-outline" size={24} color="#fff" />
+                  <Ionicons name="trash-outline" size={22} color="#fff" />
                 </TouchableOpacity>
               </View>
             )}
@@ -145,7 +158,7 @@ export default function CarritoScreen() {
                 onPress={limpiarCarrito}
                 disabled={loading}
               >
-                <Ionicons name="trash" size={20} color="#fff" />
+                <Ionicons name="trash" size={18} color="#fff" />
                 <Text style={styles.clearText}>Vaciar</Text>
               </TouchableOpacity>
 
@@ -158,8 +171,8 @@ export default function CarritoScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                    <Text style={styles.checkoutText}>Finalizar Compra</Text>
+                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                    <Text style={styles.checkoutText}>Finalizar</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -243,7 +256,7 @@ export default function CarritoScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -255,25 +268,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
+    paddingTop: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#221329',
     marginLeft: 12,
+    flex: 1,
   },
   badge: {
     backgroundColor: '#221329',
     borderRadius: 12,
-    width: 24,
+    minWidth: 24,
     height: 24,
+    paddingHorizontal: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
   },
   badgeText: {
     color: '#fff',
@@ -281,67 +296,92 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listContainer: {
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   item: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
   itemInfo: {
     flex: 1,
+    marginRight: 8,
   },
   name: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: "#221329",
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   price: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 2,
+    marginRight: 8,
   },
   cantidad: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 2,
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   subtotal: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "bold",
     color: "#221329",
-    marginTop: 4,
   },
   deleteButton: {
     backgroundColor: "#ff4d4d",
-    padding: 12,
+    width: 40,
+    height: 40,
     borderRadius: 8,
-    marginLeft: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+  },
+  footerSpacer: {
+    height: 16,
   },
   footer: {
     backgroundColor: '#fff',
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   totalContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   totalLabel: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: '#221329',
   },
@@ -352,7 +392,7 @@ const styles = StyleSheet.create({
   },
   buttonsContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   clearButton: {
     flex: 1,
@@ -360,13 +400,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: "#ff4d4d",
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
   },
   clearText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
   checkoutButton: {
@@ -375,13 +415,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: "#221329",
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
   },
   checkoutText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
   buttonDisabled: {
