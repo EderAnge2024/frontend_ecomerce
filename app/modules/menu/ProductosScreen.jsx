@@ -12,8 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '@/components/context/carritoContext';
 import { useSearch } from '../../context/searchContext';
-//import { API_PRODUCTOS } from '@env';
-const API_PRODUCTOS='https://fakestoreapi.com'
+import { getProductosDatabase } from '@/components/services/store/productos';
 
 // Componente para card de categoría
 const CategoriaCard = ({ categoria, isActive, onPress }) => {
@@ -87,21 +86,29 @@ export default function ProductosScreen() {
 
   // Cargar productos
   useEffect(() => {
-    fetch(`${API_PRODUCTOS}/products`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProductos(data);
-        setCargando(false);
-      })
-      .catch(() => setCargando(false));
+    cargarProductos();
   }, []);
 
-  // Cargar categorías
-  useEffect(() => {
-    fetch(`${API_PRODUCTOS}/products/categories`)
-      .then((res) => res.json())
-      .then((data) => setCategorias(['all', ...data]));
-  }, []);
+  const cargarProductos = async () => {
+    try {
+      setCargando(true);
+      const response = await getProductosDatabase();
+      
+      if (response.success) {
+        setProductos(response.productos);
+        
+        // Extraer categorías únicas de los productos
+        const categoriasUnicas = [...new Set(response.productos.map(p => p.category))];
+        setCategorias(['all', ...categoriasUnicas]);
+        
+        console.log(`✅ Productos cargados en menú: ${response.productos.length}`);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando productos:', error);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   // Filtrar productos por categoría
   let productosFiltrados =

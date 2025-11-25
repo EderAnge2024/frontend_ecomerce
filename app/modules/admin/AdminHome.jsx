@@ -15,6 +15,7 @@ import { useAuth } from '../../../components/context/authContext';
 import { useNavigation } from '@react-navigation/native';
 import AdminPedidos from './modules/pedidos';
 import AdminProductos from './modules/productos';
+import AdminClientes from './modules/clientes';
 import CambiarPassword from './modules/cambiarPassword';
 import EditarPerfil from './modules/editarPerfil';
 
@@ -38,7 +39,7 @@ export default function AdminHome() {
         Alert.alert(
           'Acceso Denegado',
           'Debes iniciar sesión para acceder al panel de administración',
-          [{ text: 'OK', onPress: () => navigation.navigate('Perfil') }]
+          [{ text: 'OK', onPress: () => navigation.navigate('MainTabs', { screen: 'Perfil' }) }]
         );
         return;
       }
@@ -48,7 +49,7 @@ export default function AdminHome() {
         Alert.alert(
           '🚫 Acceso Denegado',
           'No tienes el nivel de administrador necesario para acceder a este panel.\n\nTu rol actual: ' + (user?.rol || 'cliente'),
-          [{ text: 'Entendido', onPress: () => navigation.navigate('Inicio') }]
+          [{ text: 'Entendido', onPress: () => navigation.navigate('MainTabs', { screen: 'Inicio' }) }]
         );
         return;
       }
@@ -82,8 +83,9 @@ export default function AdminHome() {
     try {
       console.log('🚪 Cerrando sesión...');
       await logout();
-      console.log('✅ Sesión cerrada, redirigiendo a Inicio...');
-      navigation.navigate('Inicio');
+      console.log('✅ Sesión cerrada, redirigiendo a MainTabs...');
+      // Navegar a MainTabs (que contiene Inicio, Menú, Perfil)
+      navigation.navigate('MainTabs', { screen: 'Perfil' });
     } catch (error) {
       console.error('❌ Error al cerrar sesión:', error);
       Alert.alert('Error', 'No se pudo cerrar sesión correctamente');
@@ -130,6 +132,22 @@ export default function AdminHome() {
                 <Text style={styles.cardTitle}>Ver Productos</Text>
                 <Text style={styles.cardDescription}>
                   Catálogo completo de productos
+                </Text>
+                <View style={styles.cardArrow}>
+                  <Ionicons name="arrow-forward" size={24} color="#fff" />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.card, styles.cardClientes]}
+                onPress={() => setActiveSection('clientes')}
+              >
+                <View style={styles.cardIcon}>
+                  <Ionicons name="people" size={40} color="#fff" />
+                </View>
+                <Text style={styles.cardTitle}>Gestionar Clientes</Text>
+                <Text style={styles.cardDescription}>
+                  Ver usuarios y cambiar roles
                 </Text>
                 <View style={styles.cardArrow}>
                   <Ionicons name="arrow-forward" size={24} color="#fff" />
@@ -204,6 +222,8 @@ export default function AdminHome() {
         return <AdminPedidos />;
       case 'productos':
         return <AdminProductos />;
+      case 'clientes':
+        return <AdminClientes />;
       case 'password':
         return <CambiarPassword />;
       case 'perfil':
@@ -249,6 +269,7 @@ export default function AdminHome() {
             <Text style={styles.breadcrumbTextActive}>
               {activeSection === 'pedidos' && 'Pedidos'}
               {activeSection === 'productos' && 'Productos'}
+              {activeSection === 'clientes' && 'Clientes'}
               {activeSection === 'password' && 'Cambiar Contraseña'}
               {activeSection === 'perfil' && 'Editar Perfil'}
             </Text>
@@ -428,6 +449,9 @@ const styles = StyleSheet.create({
   },
   cardProductos: {
     backgroundColor: '#2196F3',
+  },
+  cardClientes: {
+    backgroundColor: '#E91E63',
   },
   cardPassword: {
     backgroundColor: '#FF9800',

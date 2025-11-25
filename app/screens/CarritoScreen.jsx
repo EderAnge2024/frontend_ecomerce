@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, SafeAreaView } from "react-native";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, SafeAreaView, ScrollView } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from "@/components/context/carritoContext";
 import { useAuth } from "@/components/context/authContext";
 import { useRouter } from "expo-router";
 import { loginUser } from "@/components/services/store/users";
+import { getUbicacionesByUser } from "@/components/services/store/ubicaciones";
 
 export default function CarritoScreen() {
   const { carrito, eliminarDelCarrito, limpiarCarrito, finalizarCompra, calcularTotal, cantidadProductos } = useCart();
@@ -15,8 +16,42 @@ export default function CarritoScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  
+  // Estados para ubicaciones
+  const [ubicaciones, setUbicaciones] = useState([]);
+  const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
+  const [loadingUbicaciones, setLoadingUbicaciones] = useState(false);
 
 
+
+  // Cargar ubicaciones del usuario
+  useEffect(() => {
+    if (isAuthenticated && user?.id_usuario) {
+      cargarUbicaciones();
+    }
+  }, [isAuthenticated, user]);
+
+  const cargarUbicaciones = async () => {
+    try {
+      setLoadingUbicaciones(true);
+      const response = await getUbicacionesByUser(user.id_usuario);
+      if (response.success) {
+        setUbicaciones(response.ubicaciones || []);
+        // Seleccionar la principal por defecto
+        const principal = response.ubicaciones?.find(u => u.es_principal);
+        if (principal) {
+          setUbicacionSeleccionada(principal.id_ubicacion);
+        } else if (response.ubicaciones?.length > 0) {
+          // Si no hay principal, seleccionar la primera
+          setUbicacionSeleccionada(response.ubicaciones[0].id_ubicacion);
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando ubicaciones:', error);
+    } finally {
+      setLoadingUbicaciones(false);
+    }
+  };
 
   const handleFinalizarCompra = async () => {
     if (carrito.length === 0) {
@@ -34,6 +69,25 @@ export default function CarritoScreen() {
           { text: 'Iniciar Sesión', onPress: () => router.push('/auth/Login') },
         ]
       );
+      return;
+    }
+
+    // Verificar que haya ubicaciones
+    if (ubicaciones.length === 0) {
+      Alert.alert(
+        'Sin Dirección de Envío',
+        'Debes agregar una dirección de envío antes de realizar una compra',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Agregar Dirección', onPress: () => router.push('/modules/perfil/perfil') },
+        ]
+      );
+      return;
+    }
+
+    // Verificar que haya una ubicación seleccionada
+    if (!ubicacionSeleccionada) {
+      Alert.alert('Error', 'Por favor selecciona una dirección de envío');
       return;
     }
 
@@ -64,7 +118,8 @@ export default function CarritoScreen() {
       setPassword("");
       setLoading(true);
 
-      const pedidoResponse = await finalizarCompra(user.id_usuario);
+      console.log('🛒 Enviando pedido con ubicación:', ubicacionSeleccionada);
+      const pedidoResponse = await finalizarCompra(user.id_usuario, ubicacionSeleccionada);
 
       if (pedidoResponse.success) {
         Alert.alert(
@@ -145,6 +200,54 @@ export default function CarritoScreen() {
               </View>
             )}
           />
+
+          {/* Selector de Ubicación */}
+          {isAuthenticated && (
+            <View style={styles.ubicacionContainer}>
+              <View style={styles.ubicacionHeader}>
+                <Ionicons name="location" size={20} color="#221329" />
+                <Text style={styles.ubicacionTitle}>Dirección de Envío</Text>
+              </View>
+              
+              {loadingUbicaciones ? (
+                <ActivityIndicator size="small" color="#221329" />
+              ) : ubicaciones.length === 0 ? (
+                <TouchableOpacity 
+                  style={styles.agregarUbicacionButton}
+                  onPress={() => router.push('/modules/perfil/perfil')}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#221329" />
+                  <Text style={styles.agregarUbicacionText}>Agregar dirección de envío</Text>
+                </TouchableOpacity>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ubicacionesScroll}>
+                  {ubicaciones.map((ubicacion) => (
+                    <TouchableOpacity
+                      key={ubicacion.id_ubicacion}
+                      style={[
+                        styles.ubicacionCard,
+                        ubicacionSeleccionada === ubicacion.id_ubicacion && styles.ubicacionCardSelected
+                      ]}
+                      onPress={() => setUbicacionSeleccionada(ubicacion.id_ubicacion)}
+                    >
+                      {ubicacionSeleccionada === ubicacion.id_ubicacion && (
+                        <View style={styles.checkIcon}>
+                          <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                        </View>
+                      )}
+                      <Text style={styles.ubicacionNombre}>{ubicacion.nombre}</Text>
+                      <Text style={styles.ubicacionDireccion} numberOfLines={2}>
+                        {ubicacion.direccion}
+                      </Text>
+                      {ubicacion.ciudad && (
+                        <Text style={styles.ubicacionCiudad}>{ubicacion.ciudad}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )}
 
           <View style={styles.footer}>
             <View style={styles.totalContainer}>
@@ -555,5 +658,75 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  ubicacionContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  ubicacionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  ubicacionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#221329',
+  },
+  ubicacionesScroll: {
+    flexDirection: 'row',
+  },
+  ubicacionCard: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
+    width: 200,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  ubicacionCardSelected: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#f0fff4',
+  },
+  checkIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  ubicacionNombre: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#221329',
+    marginBottom: 4,
+  },
+  ubicacionDireccion: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  ubicacionCiudad: {
+    fontSize: 11,
+    color: '#999',
+  },
+  agregarUbicacionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+  },
+  agregarUbicacionText: {
+    fontSize: 14,
+    color: '#221329',
+    fontWeight: '500',
   },
 });

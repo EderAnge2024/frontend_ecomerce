@@ -1,14 +1,18 @@
 import React, { createContext, useContext, useState } from 'react';
 
+// Contexto para compartir el término de búsqueda entre componentes
 const SearchContext = createContext();
 
 export const SearchProvider = ({ children }) => {
+  // Término de búsqueda actual
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Actualizar término de búsqueda (normalizado a minúsculas)
   const updateSearch = (term) => {
     setSearchTerm(term.toLowerCase().trim());
   };
 
+  // Limpiar búsqueda
   const clearSearch = () => {
     setSearchTerm('');
   };
@@ -20,6 +24,7 @@ export const SearchProvider = ({ children }) => {
   );
 };
 
+// Hook para usar el contexto de búsqueda
 export const useSearch = () => {
   const context = useContext(SearchContext);
   if (!context) {

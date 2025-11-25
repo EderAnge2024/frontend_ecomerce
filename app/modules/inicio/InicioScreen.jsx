@@ -19,8 +19,8 @@ import { useCart } from "@/components/context/carritoContext";
 import { useAuth } from "@/components/context/authContext";
 import { useSearch } from "../../context/searchContext";
 import RecuperarPassword from '../../auth/RecuperarPassword';
+import { getProductosDatabase } from "@/components/services/store/productos";
 
-const API_PRODUCTOS = 'https://fakestoreapi.com';
 const { width } = Dimensions.get("window");
 
 export default function InicioScreen() {
@@ -38,14 +38,29 @@ export default function InicioScreen() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    fetch(`${API_PRODUCTOS}/products`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProductos(data);
-        setCargando(false);
-      })
-      .catch(() => setCargando(false));
+    cargarProductos();
   }, []);
+
+  const cargarProductos = async () => {
+    try {
+      setCargando(true);
+      console.log('🛍️ Cargando productos de la base de datos...');
+      const response = await getProductosDatabase();
+      
+      if (response.success) {
+        setProductos(response.productos);
+        console.log(`✅ ${response.productos.length} productos cargados de BD`);
+      } else {
+        console.error('❌ Error en respuesta:', response);
+        Alert.alert('Error', 'No se pudieron cargar los productos');
+      }
+    } catch (error) {
+      console.error('❌ Error cargando productos:', error);
+      Alert.alert('Error', 'Error al cargar los productos');
+    } finally {
+      setCargando(false);
+    }
+  };
 
   // 🔹 Filtrar productos por búsqueda
   const productosFiltrados = searchTerm

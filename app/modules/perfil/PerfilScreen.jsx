@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, ActivityIn
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../components/context/authContext';
 import { useNavigation } from '@react-navigation/native';
-import { getPedidosByUser } from '../../../components/services/store/pedidos';
+import { getPedidosByUser, getProductosByPedido } from '../../../components/services/store/pedidos';
+import { getProductoById } from '../../../components/services/store/productos';
 import Login from '../../auth/Login';
 import Register from '../../auth/Register';
 import RecuperarPassword from '../../auth/RecuperarPassword';
@@ -28,6 +29,9 @@ export default function PerfilScreen() {
   // Estados para pedidos
   const [pedidos, setPedidos] = useState([]);
   const [loadingPedidos, setLoadingPedidos] = useState(false);
+  const [expandedPedido, setExpandedPedido] = useState(null);
+  const [productosPedido, setProductosPedido] = useState({});
+  const [productosInfo, setProductosInfo] = useState({});
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
@@ -68,6 +72,70 @@ export default function PerfilScreen() {
       month: '2-digit',
       year: 'numeric',
     });
+  };
+
+  const toggleExpandPedido = async (id_pedido) => {
+    if (expandedPedido === id_pedido) {
+      setExpandedPedido(null);
+    } else {
+      setExpandedPedido(id_pedido);
+      await cargarProductosPedido(id_pedido);
+    }
+  };
+
+  const cargarProductosPedido = async (id_pedido) => {
+    try {
+      if (productosPedido[id_pedido]) {
+        return;
+      }
+
+      const response = await getProductosByPedido(id_pedido);
+      if (response.success) {
+        setProductosPedido((prev) => ({
+          ...prev,
+          [id_pedido]: response.productos,
+        }));
+
+        // Cargar información de productos desde FakeStore API
+        for (const producto of response.productos) {
+          if (!productosInfo[producto.id_producto]) {
+            cargarInfoProducto(producto.id_producto);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando productos del pedido:', error);
+    }
+  };
+
+  // Cargar información detallada de un producto
+  const cargarInfoProducto = async (id_producto) => {
+    try {
+      // Convertir id_producto a integer (viene como string desde pedido_producto)
+      const id_producto_int = parseInt(id_producto, 10);
+      const response = await getProductoById(id_producto_int);
+      if (response.success && response.producto) {
+        setProductosInfo((prev) => ({
+          ...prev,
+          [id_producto]: response.producto, // Usar el string original como key
+        }));
+      }
+    } catch (error) {
+      console.error('Error cargando info del producto:', error);
+    }
+  };
+
+  const getEstadoColor = (estado) => {
+    switch (estado) {
+      case 'Pendiente':
+        return '#FFA500';
+      case 'En proceso':
+        return '#2196F3';
+      case 'Entregado':
+        return '#4CAF50';
+      default:
+        return '#999';
+    }
   };
 
   // Si no está autenticado, mostrar opciones de login/registro
@@ -365,19 +433,73 @@ export default function PerfilScreen() {
               </View>
             ) : (
               <ScrollView style={styles.pedidosList}>
-                {pedidos.map((pedido) => (
-                  <View key={pedido.id_pedido} style={styles.pedidoCard}>
-                    <View style={styles.pedidoHeader}>
-                      <View>
-                        <Text style={styles.pedidoId}>Pedido #{pedido.id_pedido}</Text>
-                        <Text style={styles.pedidoFecha}>
-                          {formatearFecha(pedido.fecha_pedido)}
-                        </Text>
-                      </View>
-                      <Text style={styles.pedidoTotal}>S/ {parseFloat(pedido.total).toFixed(2)}</Text>
+                {pedidos.map((pedido) => {
+                  const isExpanded = expandedPedido === pedido.id_pedido;
+                  const productos = productosPedido[pedido.id_pedido] || [];
+                  const estadoActual = pedido.estado || 'Pendiente';
+
+                  return (
+                    <View key={pedido.id_pedido} style={styles.pedidoCard}>
+                      <TouchableOpacity 
+                        style={styles.pedidoHeader}
+                        onPress={() => toggleExpandPedido(pedido.id_pedido)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pedidoId}>Pedido #{pedido.id_pedido}</Text>
+                          <Text style={styles.pedidoFecha}>
+                            {formatearFecha(pedido.fecha_pedido)}
+                          </Text>
+                          <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(estadoActual) }]}>
+                            <Text style={styles.estadoText}>{estadoActual}</Text>
+                          </View>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={styles.pedidoTotal}>S/ {parseFloat(pedido.total).toFixed(2)}</Text>
+                          <Ionicons
+                            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                            size={20}
+                            color="#666"
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                      {isExpanded && (
+                        <View style={styles.pedidoDetalle}>
+                          <Text style={styles.productosLabel}>Productos:</Text>
+                          {productos.length > 0 ? (
+                            productos.map((producto) => {
+                              const info = productosInfo[producto.id_producto];
+                              return (
+                                <View key={producto.id_propedido} style={styles.productoItem}>
+                                  {info?.image && (
+                                    <img 
+                                      src={info.image} 
+                                      alt={info.title}
+                                      style={{ width: 50, height: 50, objectFit: 'contain', borderRadius: 8 }}
+                                    />
+                                  )}
+                                  <View style={styles.productoInfo}>
+                                    <Text style={styles.productoNombre} numberOfLines={2}>
+                                      {info?.title || `Producto #${producto.id_producto}`}
+                                    </Text>
+                                    <Text style={styles.productoDetalle}>
+                                      Cantidad: {producto.cantidad} × S/ {parseFloat(producto.precio).toFixed(2)}
+                                    </Text>
+                                    <Text style={styles.productoSubtotal}>
+                                      Subtotal: S/ {(producto.cantidad * parseFloat(producto.precio)).toFixed(2)}
+                                    </Text>
+                                  </View>
+                                </View>
+                              );
+                            })
+                          ) : (
+                            <ActivityIndicator size="small" color="#221329" />
+                          )}
+                        </View>
+                      )}
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </ScrollView>
             )}
           </View>
@@ -706,17 +828,18 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   },
   pedidoCard: {
-    backgroundColor: '#f9f9f9',
-    padding: 16,
+    backgroundColor: '#fff',
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    overflow: 'hidden',
   },
   pedidoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 16,
   },
   pedidoId: {
     fontSize: 16,
@@ -728,9 +851,65 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#4CAF50',
+    marginBottom: 4,
   },
   pedidoFecha: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 8,
+  },
+  estadoBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  estadoText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  pedidoDetalle: {
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    padding: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  productosLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#221329',
+    marginBottom: 12,
+  },
+  productoItem: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  productoInfo: {
+    flex: 1,
+  },
+  productoNombre: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#221329',
+    marginBottom: 4,
+  },
+  productoDetalle: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  productoSubtotal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginTop: 2,
   },
 });

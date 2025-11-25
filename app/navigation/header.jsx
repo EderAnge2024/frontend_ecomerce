@@ -5,21 +5,31 @@ import CarritoScreen from '../screens/CarritoScreen';
 import { useSearch } from '../context/searchContext';
 
 const Header = () => {
+  // Texto local del input de búsqueda
   const [searchText, setSearchText] = useState('');
+  
+  // Controla visibilidad del modal del carrito
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Funciones del contexto de búsqueda global
   const { updateSearch, clearSearch } = useSearch();
 
+  // Actualizar búsqueda local y global
   const handleSearch = (text) => {
     setSearchText(text);
     updateSearch(text);
   };
 
+  // Limpiar búsqueda local y global
   const handleClearSearch = () => {
     setSearchText('');
     clearSearch();
   };
 
+  // Abrir modal del carrito
   const openCart = () => setModalVisible(true);
+  
+  // Cerrar modal del carrito
   const closeCart = () => setModalVisible(false);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,50 +8,82 @@ import {
   ScrollView,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../../components/context/authContext';
+import {
+  getUbicacionesByUser,
+  createUbicacion,
+  updateUbicacion,
+  deleteUbicacion,
+} from '../../../components/services/store/ubicaciones';
 
 export default function MyDirection() {
-  const [direcciones, setDirecciones] = useState([
-    {
-      id: 1,
-      nombre: 'Casa',
-      direccion: 'Av. Principal 123',
-      ciudad: 'Lima',
-      codigoPostal: '15001',
-      telefono: '987654321',
-      referencia: 'Cerca al parque',
-    },
-  ]);
+  const { user } = useAuth();
+  const [direcciones, setDirecciones] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [direccionActual, setDireccionActual] = useState({
-    id: null,
+    id_ubicacion: null,
     nombre: '',
     direccion: '',
     ciudad: '',
-    codigoPostal: '',
+    codigo_postal: '',
     telefono: '',
-    referencia: '',
+    es_principal: false,
   });
+
+  useEffect(() => {
+    if (user?.id_usuario) {
+      cargarDirecciones();
+    }
+  }, [user]);
+
+  const cargarDirecciones = async () => {
+    try {
+      setLoading(true);
+      const response = await getUbicacionesByUser(user.id_usuario);
+      if (response.success) {
+        setDirecciones(response.ubicaciones || []);
+      } else {
+        Alert.alert('Error', 'No se pudieron cargar las direcciones');
+      }
+    } catch (error) {
+      console.error('Error cargando direcciones:', error);
+      Alert.alert('Error', 'Error al cargar las direcciones');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const abrirModalAgregar = () => {
     setModoEdicion(false);
     setDireccionActual({
-      id: null,
+      id_ubicacion: null,
       nombre: '',
       direccion: '',
       ciudad: '',
-      codigoPostal: '',
+      codigo_postal: '',
       telefono: '',
-      referencia: '',
+      es_principal: false,
     });
     setModalVisible(true);
   };
 
   const abrirModalEditar = (direccion) => {
     setModoEdicion(true);
-    setDireccionActual({ ...direccion });
+    setDireccionActual({
+      id_ubicacion: direccion.id_ubicacion,
+      nombre: direccion.nombre,
+      direccion: direccion.direccion,
+      ciudad: direccion.ciudad || '',
+      codigo_postal: direccion.codigo_postal || '',
+      telefono: direccion.telefono || '',
+      es_principal: direccion.es_principal || false,
+    });
     setModalVisible(true);
   };
 
@@ -62,28 +94,47 @@ export default function MyDirection() {
     }));
   };
 
-  const guardarDireccion = () => {
-    if (!direccionActual.nombre || !direccionActual.direccion || !direccionActual.ciudad) {
-      Alert.alert('Error', 'Por favor complete los campos obligatorios');
+  const guardarDireccion = async () => {
+    if (!direccionActual.nombre || !direccionActual.direccion) {
+      Alert.alert('Error', 'Por favor complete los campos obligatorios (nombre y dirección)');
       return;
     }
 
-    if (modoEdicion) {
-      setDirecciones(prev =>
-        prev.map(dir => dir.id === direccionActual.id ? direccionActual : dir)
-      );
-    } else {
-      const nuevaDireccion = {
-        ...direccionActual,
-        id: Date.now(),
+    try {
+      const ubicacionData = {
+        id_usuario: user.id_usuario,
+        nombre: direccionActual.nombre,
+        direccion: direccionActual.direccion,
+        ciudad: direccionActual.ciudad,
+        codigo_postal: direccionActual.codigo_postal,
+        telefono: direccionActual.telefono,
+        es_principal: direccionActual.es_principal,
       };
-      setDirecciones(prev => [...prev, nuevaDireccion]);
-    }
 
-    setModalVisible(false);
+      let response;
+      if (modoEdicion && direccionActual.id_ubicacion) {
+        response = await updateUbicacion(direccionActual.id_ubicacion, ubicacionData);
+      } else {
+        response = await createUbicacion(ubicacionData);
+      }
+
+      if (response.success) {
+        Alert.alert(
+          'Éxito',
+          modoEdicion ? 'Dirección actualizada correctamente' : 'Dirección agregada correctamente'
+        );
+        setModalVisible(false);
+        cargarDirecciones();
+      } else {
+        Alert.alert('Error', response.message || 'No se pudo guardar la dirección');
+      }
+    } catch (error) {
+      console.error('Error guardando dirección:', error);
+      Alert.alert('Error', 'Error al guardar la dirección');
+    }
   };
 
-  const eliminarDireccion = (id) => {
+  const eliminarDireccion = (id_ubicacion) => {
     Alert.alert(
       'Confirmar eliminación',
       '¿Está seguro que desea eliminar esta dirección?',
@@ -92,18 +143,41 @@ export default function MyDirection() {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setDirecciones(prev => prev.filter(dir => dir.id !== id));
+          onPress: async () => {
+            try {
+              const response = await deleteUbicacion(id_ubicacion);
+              if (response.success) {
+                Alert.alert('Éxito', 'Dirección eliminada correctamente');
+                cargarDirecciones();
+              } else {
+                Alert.alert('Error', response.message || 'No se pudo eliminar la dirección');
+              }
+            } catch (error) {
+              console.error('Error eliminando dirección:', error);
+              Alert.alert('Error', 'Error al eliminar la dirección');
+            }
           },
         },
       ]
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#221329" />
+        <Text style={styles.loadingText}>Cargando direcciones...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Mis Direcciones</Text>
+        <View style={styles.headerContainer}>
+          <Ionicons name="location" size={32} color="#221329" />
+          <Text style={styles.title}>Mis Direcciones</Text>
+        </View>
 
         {direcciones.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -112,37 +186,59 @@ export default function MyDirection() {
           </View>
         ) : (
           direcciones.map((direccion) => (
-            <View key={direccion.id} style={styles.direccionCard}>
+            <View key={direccion.id_ubicacion} style={styles.direccionCard}>
               <View style={styles.direccionHeader}>
-                <Text style={styles.direccionNombre}>{direccion.nombre}</Text>
+                <View style={styles.nombreContainer}>
+                  <Text style={styles.direccionNombre}>{direccion.nombre}</Text>
+                  {direccion.es_principal && (
+                    <View style={styles.principalBadge}>
+                      <Text style={styles.principalText}>Principal</Text>
+                    </View>
+                  )}
+                </View>
                 <View style={styles.botonesContainer}>
                   <TouchableOpacity
                     style={styles.botonEditar}
                     onPress={() => abrirModalEditar(direccion)}
                   >
-                    <Text style={styles.botonEditarText}>✏️ Editar</Text>
+                    <Ionicons name="create-outline" size={16} color="#fff" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.botonEliminar}
-                    onPress={() => eliminarDireccion(direccion.id)}
+                    onPress={() => eliminarDireccion(direccion.id_ubicacion)}
                   >
-                    <Text style={styles.botonEliminarText}>🗑️ Borrar</Text>
+                    <Ionicons name="trash-outline" size={16} color="#fff" />
                   </TouchableOpacity>
                 </View>
               </View>
               
-              <Text style={styles.direccionTexto}>{direccion.direccion}</Text>
-              <Text style={styles.direccionTexto}>{direccion.ciudad} - {direccion.codigoPostal}</Text>
-              <Text style={styles.direccionTexto}>Tel: {direccion.telefono}</Text>
-              {direccion.referencia ? (
-                <Text style={styles.direccionReferencia}>Ref: {direccion.referencia}</Text>
-              ) : null}
+              <View style={styles.direccionInfo}>
+                <Ionicons name="location-outline" size={16} color="#666" />
+                <Text style={styles.direccionTexto}>{direccion.direccion}</Text>
+              </View>
+              
+              {direccion.ciudad && (
+                <View style={styles.direccionInfo}>
+                  <Ionicons name="business-outline" size={16} color="#666" />
+                  <Text style={styles.direccionTexto}>
+                    {direccion.ciudad}{direccion.codigo_postal ? ` - ${direccion.codigo_postal}` : ''}
+                  </Text>
+                </View>
+              )}
+              
+              {direccion.telefono && (
+                <View style={styles.direccionInfo}>
+                  <Ionicons name="call-outline" size={16} color="#666" />
+                  <Text style={styles.direccionTexto}>{direccion.telefono}</Text>
+                </View>
+              )}
             </View>
           ))
         )}
 
         <TouchableOpacity style={styles.botonAgregar} onPress={abrirModalAgregar}>
-          <Text style={styles.botonAgregarText}>+ Agregar Nueva Dirección</Text>
+          <Ionicons name="add-circle-outline" size={24} color="#fff" />
+          <Text style={styles.botonAgregarText}>Agregar Nueva Dirección</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -197,8 +293,8 @@ export default function MyDirection() {
                 <Text style={styles.label}>Código Postal</Text>
                 <TextInput
                   style={styles.input}
-                  value={direccionActual.codigoPostal}
-                  onChangeText={(value) => handleInputChange('codigoPostal', value)}
+                  value={direccionActual.codigo_postal}
+                  onChangeText={(value) => handleInputChange('codigo_postal', value)}
                   placeholder="Código postal"
                   placeholderTextColor="#999"
                   keyboardType="numeric"
@@ -217,17 +313,18 @@ export default function MyDirection() {
                 />
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Referencia</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={direccionActual.referencia}
-                  onChangeText={(value) => handleInputChange('referencia', value)}
-                  placeholder="Punto de referencia (opcional)"
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={3}
-                />
+              <View style={styles.checkboxContainer}>
+                <TouchableOpacity
+                  style={styles.checkbox}
+                  onPress={() => handleInputChange('es_principal', !direccionActual.es_principal)}
+                >
+                  <Ionicons
+                    name={direccionActual.es_principal ? 'checkbox' : 'square-outline'}
+                    size={24}
+                    color={direccionActual.es_principal ? '#4CAF50' : '#999'}
+                  />
+                  <Text style={styles.checkboxLabel}>Establecer como dirección principal</Text>
+                </TouchableOpacity>
               </View>
 
               <TouchableOpacity style={styles.botonGuardar} onPress={guardarDireccion}>
@@ -253,15 +350,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
   scrollContent: {
     padding: 20,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 12,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
+    color: '#221329',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -290,13 +403,30 @@ const styles = StyleSheet.create({
   direccionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  nombreContainer: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: 8,
   },
   direccionNombre: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#221329',
+  },
+  principalBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  principalText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
   },
   botonesContainer: {
     flexDirection: 'row',
@@ -304,47 +434,44 @@ const styles = StyleSheet.create({
   },
   botonEditar: {
     backgroundColor: '#2196F3',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 5,
-  },
-  botonEditarText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   botonEliminar: {
     backgroundColor: '#f44336',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 5,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  botonEliminarText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+  direccionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
   },
   direccionTexto: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 4,
-  },
-  direccionReferencia: {
-    fontSize: 13,
-    color: '#999',
-    fontStyle: 'italic',
-    marginTop: 4,
+    flex: 1,
   },
   botonAgregar: {
-    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
+    backgroundColor: '#221329',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 10,
+    gap: 8,
   },
   botonAgregarText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   modalOverlay: {
@@ -414,5 +541,17 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  checkboxContainer: {
+    marginVertical: 10,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#333',
   },
 });

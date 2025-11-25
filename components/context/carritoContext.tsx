@@ -15,7 +15,7 @@ interface CartContextProps {
   agregarAlCarrito: (producto: Producto) => void;
   eliminarDelCarrito: (id: number) => void;
   limpiarCarrito: () => void;
-  finalizarCompra: (id_usuario: number) => Promise<{ success: boolean; message: string; pedido?: any }>;
+  finalizarCompra: (id_usuario: number, id_ubicacion?: number) => Promise<{ success: boolean; message: string; pedido?: any }>;
   calcularTotal: () => number;
   cantidadProductos: () => number;
 }
@@ -23,9 +23,10 @@ interface CartContextProps {
 const CartContext = createContext<CartContextProps | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
+  // Lista de productos en el carrito
   const [carrito, setCarrito] = useState<Producto[]>([]);
 
-  // 🔹 Cargar carrito desde AsyncStorage al iniciar
+  // Cargar carrito desde AsyncStorage al iniciar la app
   useEffect(() => {
     const cargarCarrito = async () => {
       try {
@@ -38,7 +39,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     cargarCarrito();
   }, []);
 
-  // 🔹} Guardar carrito en AsyncStorage cada vez que cambia
+  // Guardar carrito en AsyncStorage cada vez que cambia
   useEffect(() => {
     const guardarCarrito = async () => {
       try {
@@ -50,12 +51,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     guardarCarrito();
   }, [carrito]);
 
+  // Agregar producto al carrito (o incrementar cantidad si ya existe)
   const agregarAlCarrito = (producto: Producto) => {
     setCarrito((prev) => {
-      // Verificar si el producto ya existe en el carrito
+      // Buscar si el producto ya está en el carrito
       const existente = prev.find((p) => p.id === producto.id);
       if (existente) {
-        // Si existe, incrementar cantidad
+        // Incrementar cantidad del producto existente
         return prev.map((p) =>
           p.id === producto.id
             ? { ...p, cantidad: (p.cantidad || 1) + 1 }
@@ -85,7 +87,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   };
 
-  const finalizarCompra = async (id_usuario: number) => {
+  const finalizarCompra = async (id_usuario: number, id_ubicacion?: number) => {
     try {
       if (carrito.length === 0) {
         return { success: false, message: 'El carrito está vacío' };
@@ -94,10 +96,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Calcular el total del pedido
       const total = calcularTotal();
 
-      // Crear el pedido
+      console.log('🛒 Finalizando compra:', { id_usuario, total, id_ubicacion });
+
+      // Crear el pedido con ubicación
       const pedidoResponse = await createPedido({
         id_usuario,
         total,
+        id_ubicacion,
       });
 
       if (!pedidoResponse.success) {

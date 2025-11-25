@@ -97,6 +97,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Refrescar los datos del usuario desde AsyncStorage
+  const refreshUser = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+    } catch (error) {
+      console.error('Error refrescando usuario:', error);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -104,6 +116,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateUser,
+    refreshUser,
     isAdmin,
     isClient,
     isAuthenticated: !!user,
