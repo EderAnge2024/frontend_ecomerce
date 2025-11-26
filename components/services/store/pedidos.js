@@ -180,3 +180,19 @@ export const createPedidoProducto = async (pedidoProductoData) => {
     throw error
   }
 }
+
+/**
+ * Obtener todos los productos de un pedido específico
+ * @param {number} id_pedido - ID del pedido
+ * @returns {Promise<Object>} Respuesta con array de productos del pedido
+ */
+export const getProductosByPedido = async (id_pedido) => {
+  try {
+    const response = await fetch(`${BASE_URL}/pedido-productos/pedido/${id_pedido}`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error en getProductosByPedido:', error);
+    throw error;
+  }
+};

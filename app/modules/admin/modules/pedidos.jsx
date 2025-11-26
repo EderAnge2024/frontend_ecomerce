@@ -167,23 +167,40 @@ const AdminPedidos = () => {
     });
   };
 
+  // Renderizar cada producto del pedido
   const renderProducto = ({ item }) => {
     const info = productosInfo[item.id_producto];
+    const isLoading = !info;
     
     return (
       <View style={styles.productoItem}>
-        {info?.image && (
-          <img 
-            src={info.image} 
-            alt={info.title}
-            style={{ width: 60, height: 60, objectFit: 'contain', borderRadius: 8 }}
-          />
-        )}
+        {/* Imagen del producto o placeholder */}
+        <View style={styles.productoImageContainer}>
+          {isLoading ? (
+            <View style={styles.imagePlaceholder}>
+              <ActivityIndicator size="small" color="#221329" />
+            </View>
+          ) : info?.image ? (
+            <img 
+              src={info.image} 
+              alt={info.title}
+              style={{ width: 60, height: 60, objectFit: 'contain', borderRadius: 8 }}
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={30} color="#ccc" />
+            </View>
+          )}
+        </View>
+        
+        {/* Información del producto */}
         <View style={styles.productoInfo}>
           <Text style={styles.productoNombre}>
             {info?.title || `Producto #${item.id_producto}`}
           </Text>
-          <Text style={styles.productoDetalle}>Cantidad: {item.cantidad}</Text>
+          <Text style={styles.productoDetalle}>
+            Cantidad: {item.cantidad}
+          </Text>
           <Text style={styles.productoDetalle}>
             Precio: S/ {parseFloat(item.precio).toFixed(2)}
           </Text>
@@ -558,6 +575,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
     gap: 12,
+  },
+  productoImageContainer: {
+    width: 60,
+    height: 60,
+  },
+  imagePlaceholder: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   productoInfo: {
     flex: 1,

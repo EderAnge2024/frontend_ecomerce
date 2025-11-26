@@ -161,25 +161,39 @@ export default function CarritoScreen() {
         </>
       ) : (
         <>
-          <FlatList
-            data={carrito}
-            keyExtractor={(item) => item.id.toString()}
+          {/* Header fijo */}
+          <View style={styles.header}>
+            <Ionicons name="cart" size={32} color="#221329" />
+            <Text style={styles.headerTitle}>Mi Carrito</Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{cantidadProductos()}</Text>
+            </View>
+          </View>
+
+          {/* ScrollView con productos */}
+          <ScrollView 
+            style={styles.scrollContainer}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={true}
-            ListHeaderComponent={
-              <View style={styles.header}>
-                <Ionicons name="cart" size={32} color="#221329" />
-                <Text style={styles.headerTitle}>Mi Carrito</Text>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{cantidadProductos()}</Text>
-                </View>
-              </View>
-            }
-            ListFooterComponent={
-              <View style={styles.footerSpacer} />
-            }
-            renderItem={({ item }) => (
-              <View style={styles.item}>
+          >
+            {carrito.map((item) => (
+              <View key={item.id.toString()} style={styles.item}>
+                {/* Imagen del producto */}
+                {item.imagen && (
+                  <img 
+                    src={item.imagen} 
+                    alt={item.nombre}
+                    style={{
+                      width: 70,
+                      height: 70,
+                      objectFit: 'contain',
+                      borderRadius: 8,
+                      marginRight: 12,
+                      backgroundColor: '#f9f9f9',
+                    }}
+                  />
+                )}
+                
                 <View style={styles.itemInfo}>
                   <Text style={styles.name} numberOfLines={2}>{item.nombre}</Text>
                   <View style={styles.priceRow}>
@@ -187,7 +201,7 @@ export default function CarritoScreen() {
                     <Text style={styles.cantidad}>x {item.cantidad || 1}</Text>
                   </View>
                   <Text style={styles.subtotal}>
-                    S/ {(item.precio * (item.cantidad || 1)).toFixed(2)}
+                    Subtotal: S/ {(item.precio * (item.cantidad || 1)).toFixed(2)}
                   </Text>
                 </View>
 
@@ -198,8 +212,8 @@ export default function CarritoScreen() {
                   <Ionicons name="trash-outline" size={22} color="#fff" />
                 </TouchableOpacity>
               </View>
-            )}
-          />
+            ))}
+          </ScrollView>
 
           {/* Selector de Ubicación */}
           {isAuthenticated && (
@@ -291,8 +305,16 @@ export default function CarritoScreen() {
         visible={modalVisible}
         onRequestClose={handleCancelarModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={handleCancelarModal}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.modalHeader}>
               <Ionicons name="lock-closed" size={40} color="#221329" />
               <Text style={styles.modalTitle}>Confirmar Pedido</Text>
@@ -301,7 +323,41 @@ export default function CarritoScreen() {
               </Text>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView style={styles.modalBody}>
+              {/* Lista de productos en el modal */}
+              <View style={styles.productosModalContainer}>
+                <Text style={styles.productosModalTitle}>Productos a comprar:</Text>
+                {carrito.map((item) => (
+                  <View key={item.id.toString()} style={styles.productoModalItem}>
+                    {item.imagen && (
+                      <img 
+                        src={item.imagen} 
+                        alt={item.nombre}
+                        style={{
+                          width: 40,
+                          height: 40,
+                          objectFit: 'contain',
+                          borderRadius: 6,
+                          marginRight: 10,
+                          backgroundColor: '#f9f9f9',
+                        }}
+                      />
+                    )}
+                    <View style={styles.productoModalInfo}>
+                      <Text style={styles.productoModalNombre} numberOfLines={1}>
+                        {item.nombre}
+                      </Text>
+                      <Text style={styles.productoModalDetalle}>
+                        {item.cantidad || 1} x S/ {item.precio.toFixed(2)}
+                      </Text>
+                    </View>
+                    <Text style={styles.productoModalSubtotal}>
+                      S/ {(item.precio * (item.cantidad || 1)).toFixed(2)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
               <View style={styles.orderSummary}>
                 <Text style={styles.summaryLabel}>Total a pagar:</Text>
                 <Text style={styles.summaryAmount}>S/ {calcularTotal().toFixed(2)}</Text>
@@ -355,9 +411,9 @@ export default function CarritoScreen() {
                   )}
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
-        </View>
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -398,22 +454,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  scrollContainer: {
+    flex: 1,
+  },
   listContainer: {
     paddingHorizontal: 12,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 16,
   },
   item: {
     flexDirection: "row",
+    alignItems: 'center',
     backgroundColor: '#fff',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 10,
-    elevation: 1,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   itemInfo: {
     flex: 1,
@@ -423,7 +485,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: "#221329",
-    marginBottom: 6,
+    marginBottom: 8,
     lineHeight: 20,
   },
   priceRow: {
@@ -445,18 +507,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   subtotal: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#221329",
+    color: "#4CAF50",
+    marginTop: 4,
   },
   deleteButton: {
     backgroundColor: "#ff4d4d",
-    width: 40,
-    height: 40,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   footerSpacer: {
     height: 16,
@@ -585,10 +653,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalBody: {
+    maxHeight: 400,
     padding: 24,
   },
-  orderSummary: {
+  productosModalContainer: {
+    marginBottom: 16,
+  },
+  productosModalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#221329',
+    marginBottom: 12,
+  },
+  productoModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f9f9f9',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  productoModalInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  productoModalNombre: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#221329',
+    marginBottom: 2,
+  },
+  productoModalDetalle: {
+    fontSize: 11,
+    color: '#666',
+  },
+  productoModalSubtotal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  orderSummary: {
+    backgroundColor: '#221329',
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
@@ -596,13 +701,13 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#fff',
     marginBottom: 8,
   },
   summaryAmount: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#221329',
+    color: '#fff',
   },
   inputContainer: {
     flexDirection: 'row',

@@ -469,15 +469,28 @@ export default function PerfilScreen() {
                           {productos.length > 0 ? (
                             productos.map((producto) => {
                               const info = productosInfo[producto.id_producto];
+                              const isLoading = !info;
                               return (
                                 <View key={producto.id_propedido} style={styles.productoItem}>
-                                  {info?.image && (
-                                    <img 
-                                      src={info.image} 
-                                      alt={info.title}
-                                      style={{ width: 50, height: 50, objectFit: 'contain', borderRadius: 8 }}
-                                    />
-                                  )}
+                                  {/* Imagen o placeholder */}
+                                  <View style={styles.productoImageContainer}>
+                                    {isLoading ? (
+                                      <View style={styles.imagePlaceholder}>
+                                        <ActivityIndicator size="small" color="#221329" />
+                                      </View>
+                                    ) : info?.image ? (
+                                      <img 
+                                        src={info.image} 
+                                        alt={info.title}
+                                        style={{ width: 50, height: 50, objectFit: 'contain', borderRadius: 8 }}
+                                      />
+                                    ) : (
+                                      <View style={styles.imagePlaceholder}>
+                                        <Ionicons name="image-outline" size={25} color="#ccc" />
+                                      </View>
+                                    )}
+                                  </View>
+                                  
                                   <View style={styles.productoInfo}>
                                     <Text style={styles.productoNombre} numberOfLines={2}>
                                       {info?.title || `Producto #${producto.id_producto}`}
@@ -891,6 +904,18 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+  },
+  productoImageContainer: {
+    width: 50,
+    height: 50,
+  },
+  imagePlaceholder: {
+    width: 50,
+    height: 50,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   productoInfo: {
     flex: 1,
