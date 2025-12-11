@@ -11,9 +11,10 @@ import RecuperarPassword from '../../auth/RecuperarPassword';
 import MyProfile from './myprofile';
 import MyDirection from './mydirection';
 import MyContactenos from './mycontactenos';
+import ChangeCredentials from './ChangeCredentials';
 
 export default function PerfilScreen() {
-  const { user, logout, isAdmin, isAuthenticated } = useAuth();
+  const { user, logout, isAdmin, isAuthenticated, refreshUser } = useAuth();
   const navigation = useNavigation();
   
   // Estados para modales
@@ -25,6 +26,7 @@ export default function PerfilScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showDirectionModal, setShowDirectionModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   
   // Estados para pedidos
   const [pedidos, setPedidos] = useState([]);
@@ -334,6 +336,21 @@ export default function PerfilScreen() {
             <Ionicons name="chevron-forward" size={24} color="#ccc" />
           </TouchableOpacity>
 
+          {/* Cambiar Credenciales */}
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => setShowCredentialsModal(true)}
+          >
+            <View style={styles.menuIcon}>
+              <Ionicons name="key-outline" size={24} color="#221329" />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Cambiar Credenciales</Text>
+              <Text style={styles.menuSubtitle}>Actualizar usuario y contraseña</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#ccc" />
+          </TouchableOpacity>
+
           {/* Mis Pedidos */}
           <TouchableOpacity 
             style={styles.menuItem}
@@ -561,6 +578,25 @@ export default function PerfilScreen() {
             </TouchableOpacity>
           </View>
           <MyContactenos />
+        </View>
+      </Modal>
+
+      {/* Modal de Cambiar Credenciales */}
+      <Modal visible={showCredentialsModal} animationType="slide">
+        <View style={styles.modalFullScreen}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowCredentialsModal(false)} 
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={32} color="#221329" />
+            </TouchableOpacity>
+          </View>
+          <ChangeCredentials onSuccess={() => {
+            setShowCredentialsModal(false);
+            // Refrescar los datos del usuario
+            refreshUser();
+          }} />
         </View>
       </Modal>
     </View>

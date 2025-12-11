@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createPedido, createPedidoProducto } from "../services/store/pedidos";
+import { procesarCompraMultiVendedor } from "../services/store/pedidos-multi-vendor";
 
 export interface Producto {
   id: number;
@@ -14,8 +15,11 @@ interface CartContextProps {
   carrito: Producto[];
   agregarAlCarrito: (producto: Producto) => void;
   eliminarDelCarrito: (id: number) => void;
+  incrementarCantidad: (id: number) => void;
+  decrementarCantidad: (id: number) => void;
   limpiarCarrito: () => void;
   finalizarCompra: (id_usuario: number, id_ubicacion?: number) => Promise<{ success: boolean; message: string; pedido?: any }>;
+  finalizarCompraMultiVendedor: (id_usuario: number, id_ubicacion?: number) => Promise<{ success: boolean; message: string; resultado?: any }>;
   calcularTotal: () => number;
   cantidadProductos: () => number;
 }
@@ -73,6 +77,30 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setCarrito((prev) => prev.filter((p) => p.id !== id));
   };
 
+  // Incrementar cantidad de un producto específico
+  const incrementarCantidad = (id: number) => {
+    setCarrito((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, cantidad: (p.cantidad || 1) + 1 }
+          : p
+      )
+    );
+  };
+
+  // Decrementar cantidad de un producto específico (eliminar si llega a 0)
+  const decrementarCantidad = (id: number) => {
+    setCarrito((prev) =>
+      prev.map((p) => {
+        if (p.id === id) {
+          const nuevaCantidad = (p.cantidad || 1) - 1;
+          return nuevaCantidad <= 0 ? null : { ...p, cantidad: nuevaCantidad };
+        }
+        return p;
+      }).filter((p) => p !== null) as Producto[]
+    );
+  };
+
   const limpiarCarrito = () => setCarrito([]);
 
   const calcularTotal = () => {
@@ -87,6 +115,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   };
 
+  // Función original para compatibilidad hacia atrás
   const finalizarCompra = async (id_usuario: number, id_ubicacion?: number) => {
     try {
       if (carrito.length === 0) {
@@ -96,14 +125,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Calcular el total del pedido
       const total = calcularTotal();
 
-      console.log('🛒 Finalizando compra:', { id_usuario, total, id_ubicacion });
+      console.log('🛒 Finalizando compra (método tradicional):', { id_usuario, total, id_ubicacion });
 
       // Crear el pedido con ubicación
       const pedidoResponse = await createPedido({
         id_usuario,
         total,
         id_ubicacion,
-      });
+      }) as any;
 
       if (!pedidoResponse.success) {
         return { success: false, message: 'Error al crear el pedido' };
@@ -135,14 +164,57 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Nueva función para compras multi-vendedor
+  const finalizarCompraMultiVendedor = async (id_usuario: number, id_ubicacion?: number) => {
+    try {
+      if (carrito.length === 0) {
+        return { success: false, message: 'El carrito está vacío' };
+      }
+
+      console.log('🛒 Finalizando compra multi-vendedor:', { 
+        id_usuario, 
+        productos: carrito.length, 
+        id_ubicacion 
+      });
+
+      // Procesar compra con división automática por vendedor
+      const resultado = await procesarCompraMultiVendedor({
+        id_usuario,
+        productos: carrito,
+        id_ubicacion: id_ubicacion as number,
+      }) as any;
+
+      if (!resultado.success) {
+        return { success: false, message: resultado.message || 'Error al procesar la compra' };
+      }
+
+      // Limpiar el carrito después de crear el pedido
+      limpiarCarrito();
+
+      return {
+        success: true,
+        message: resultado.message,
+        resultado,
+      };
+    } catch (error) {
+      console.error('Error al finalizar compra multi-vendedor:', error);
+      return { success: false, message: 'Error al procesar el pedido' };
+    }
+  };
+
+
+
   return (
     <CartContext.Provider
       value={{
         carrito,
         agregarAlCarrito,
         eliminarDelCarrito,
+        incrementarCantidad,
+        decrementarCantidad,
         limpiarCarrito,
         finalizarCompra,
+        finalizarCompraMultiVendedor,
         calcularTotal,
         cantidadProductos,
       }}

@@ -7,8 +7,9 @@ import { useRouter } from "expo-router";
 import { loginUser } from "@/components/services/store/users";
 import { getUbicacionesByUser } from "@/components/services/store/ubicaciones";
 
+
 export default function CarritoScreen() {
-  const { carrito, eliminarDelCarrito, limpiarCarrito, finalizarCompra, calcularTotal, cantidadProductos } = useCart();
+  const { carrito, eliminarDelCarrito, incrementarCantidad, decrementarCantidad, limpiarCarrito, finalizarCompraMultiVendedor, previewDivision, calcularTotal, cantidadProductos } = useCart();
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -118,13 +119,13 @@ export default function CarritoScreen() {
       setPassword("");
       setLoading(true);
 
-      console.log('🛒 Enviando pedido con ubicación:', ubicacionSeleccionada);
-      const pedidoResponse = await finalizarCompra(user.id_usuario, ubicacionSeleccionada);
+      console.log('🛒 Enviando pedido multi-vendedor con ubicación:', ubicacionSeleccionada);
+      const pedidoResponse = await finalizarCompraMultiVendedor(user.id_usuario, ubicacionSeleccionada);
 
       if (pedidoResponse.success) {
         Alert.alert(
           '¡Pedido Exitoso!',
-          'Tu pedido ha sido registrado correctamente. El administrador lo procesará pronto.',
+          'Tu pedido ha sido registrado correctamente. Recibirás una confirmación pronto.',
           [{ text: 'OK' }]
         );
       } else {
@@ -184,8 +185,8 @@ export default function CarritoScreen() {
                     src={item.imagen} 
                     alt={item.nombre}
                     style={{
-                      width: 70,
-                      height: 70,
+                      width: 50,
+                      height: 60,
                       objectFit: 'contain',
                       borderRadius: 8,
                       marginRight: 12,
@@ -215,50 +216,51 @@ export default function CarritoScreen() {
             ))}
           </ScrollView>
 
-          {/* Selector de Ubicación */}
+          {/* Selector de Ubicación - Reorganizado */}
           {isAuthenticated && (
             <View style={styles.ubicacionContainer}>
-              <View style={styles.ubicacionHeader}>
-                <Ionicons name="location" size={20} color="#221329" />
-                <Text style={styles.ubicacionTitle}>Dirección de Envío</Text>
-              </View>
-              
               {loadingUbicaciones ? (
-                <ActivityIndicator size="small" color="#221329" />
+                <View style={styles.ubicacionHeader}>
+                  <Ionicons name="location" size={18} color="#221329" />
+                  <Text style={styles.ubicacionTitle}>Cargando direcciones...</Text>
+                  <ActivityIndicator size="small" color="#221329" style={{marginLeft: 8}} />
+                </View>
               ) : ubicaciones.length === 0 ? (
                 <TouchableOpacity 
-                  style={styles.agregarUbicacionButton}
+                  style={styles.agregarUbicacionButtonCompact}
                   onPress={() => router.push('/modules/perfil/perfil')}
                 >
-                  <Ionicons name="add-circle-outline" size={20} color="#221329" />
-                  <Text style={styles.agregarUbicacionText}>Agregar dirección de envío</Text>
+                  <Ionicons name="location" size={18} color="#221329" />
+                  <Text style={styles.ubicacionTitleCompact}>Agregar dirección de envío</Text>
+                  <Ionicons name="add-circle-outline" size={18} color="#221329" />
                 </TouchableOpacity>
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ubicacionesScroll}>
-                  {ubicaciones.map((ubicacion) => (
-                    <TouchableOpacity
-                      key={ubicacion.id_ubicacion}
-                      style={[
-                        styles.ubicacionCard,
-                        ubicacionSeleccionada === ubicacion.id_ubicacion && styles.ubicacionCardSelected
-                      ]}
-                      onPress={() => setUbicacionSeleccionada(ubicacion.id_ubicacion)}
-                    >
-                      {ubicacionSeleccionada === ubicacion.id_ubicacion && (
-                        <View style={styles.checkIcon}>
-                          <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                        </View>
-                      )}
-                      <Text style={styles.ubicacionNombre}>{ubicacion.nombre}</Text>
-                      <Text style={styles.ubicacionDireccion} numberOfLines={2}>
-                        {ubicacion.direccion}
-                      </Text>
-                      {ubicacion.ciudad && (
-                        <Text style={styles.ubicacionCiudad}>{ubicacion.ciudad}</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <View style={styles.envioRowContainer}>
+                  <View style={styles.envioLabelContainer}>
+                    <Ionicons name="location" size={18} color="#221329" />
+                    <Text style={styles.envioLabel}>Envío a:</Text>
+                  </View>
+                  
+                  <View style={styles.envioUbicacionContainer}>
+                    {ubicaciones.find(u => u.id_ubicacion === ubicacionSeleccionada) ? (
+                      <TouchableOpacity 
+                        style={styles.ubicacionSeleccionadaDisplay}
+                        onPress={() => {
+                          // Aquí podrías abrir un modal para cambiar ubicación si quieres
+                        }}
+                      >
+                        <Text style={styles.ubicacionSeleccionadaNombre}>
+                          {ubicaciones.find(u => u.id_ubicacion === ubicacionSeleccionada)?.nombre}
+                        </Text>
+                        <Text style={styles.ubicacionSeleccionadaDireccion} numberOfLines={1}>
+                          {ubicaciones.find(u => u.id_ubicacion === ubicacionSeleccionada)?.direccion}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={styles.sinUbicacionText}>Seleccionar ubicación</Text>
+                    )}
+                  </View>
+                </View>
               )}
             </View>
           )}
@@ -347,10 +349,34 @@ export default function CarritoScreen() {
                       <Text style={styles.productoModalNombre} numberOfLines={1}>
                         {item.nombre}
                       </Text>
-                      <Text style={styles.productoModalDetalle}>
-                        {item.cantidad || 1} x S/ {item.precio.toFixed(2)}
+                      <Text style={styles.productoModalPrecio}>
+                        S/ {item.precio.toFixed(2)} c/u
                       </Text>
                     </View>
+                    
+                    {/* Controles de cantidad */}
+                    <View style={styles.cantidadControls}>
+                      <TouchableOpacity
+                        style={styles.cantidadButton}
+                        onPress={() => decrementarCantidad(item.id)}
+                        disabled={verifying}
+                      >
+                        <Ionicons name="remove" size={16} color="#221329" />
+                      </TouchableOpacity>
+                      
+                      <Text style={styles.cantidadText}>
+                        {item.cantidad || 1}
+                      </Text>
+                      
+                      <TouchableOpacity
+                        style={styles.cantidadButton}
+                        onPress={() => incrementarCantidad(item.id)}
+                        disabled={verifying}
+                      >
+                        <Ionicons name="add" size={16} color="#221329" />
+                      </TouchableOpacity>
+                    </View>
+                    
                     <Text style={styles.productoModalSubtotal}>
                       S/ {(item.precio * (item.cantidad || 1)).toFixed(2)}
                     </Text>
@@ -458,17 +484,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContainer: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: 7,
+    paddingTop: 1,
+    paddingBottom: 10,
   },
   item: {
     flexDirection: "row",
     alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 12,
+    padding: 6,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 5,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -482,7 +508,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   name: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: "#221329",
     marginBottom: 8,
@@ -494,12 +520,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   price: {
-    fontSize: 14,
+    fontSize: 11,
     color: "#666",
     marginRight: 8,
   },
   cantidad: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#666",
     backgroundColor: '#f0f0f0',
     paddingHorizontal: 8,
@@ -507,15 +533,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   subtotal: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "bold",
     color: "#4CAF50",
     marginTop: 4,
   },
   deleteButton: {
     backgroundColor: "#ff4d4d",
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -532,7 +558,7 @@ const styles = StyleSheet.create({
   footer: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 10,
     paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
@@ -683,7 +709,7 @@ const styles = StyleSheet.create({
     color: '#221329',
     marginBottom: 2,
   },
-  productoModalDetalle: {
+  productoModalPrecio: {
     fontSize: 11,
     color: '#666',
   },
@@ -691,6 +717,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#4CAF50',
+    minWidth: 60,
+    textAlign: 'right',
+  },
+  cantidadControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginHorizontal: 8,
+  },
+  cantidadButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  cantidadText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#221329',
+    minWidth: 30,
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
   orderSummary: {
     backgroundColor: '#221329',
@@ -766,7 +818,7 @@ const styles = StyleSheet.create({
   },
   ubicacionContainer: {
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 12,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
@@ -833,5 +885,105 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#221329',
     fontWeight: '500',
+  },
+  // Estilos compactos para la sección reorganizada
+  ubicacionHeaderCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  ubicacionTitleCompact: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#221329',
+  },
+  agregarUbicacionButtonCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  ubicacionesScrollCompact: {
+    flexDirection: 'row',
+  },
+  ubicacionCardCompact: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 8,
+    marginRight: 8,
+    minWidth: 140,
+    maxWidth: 160,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    position: 'relative',
+  },
+  ubicacionCardSelectedCompact: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#f0fff4',
+  },
+  checkIconCompact: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+  },
+  ubicacionNombreCompact: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#221329',
+    marginBottom: 2,
+  },
+  ubicacionDireccionCompact: {
+    fontSize: 10,
+    color: '#666',
+  },
+  // Estilos para layout horizontal "Envío a:"
+  envioRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  envioLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  envioLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#221329',
+  },
+  envioUbicacionContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  ubicacionSeleccionadaDisplay: {
+    flexDirection: 'colunm',
+    alignItems: 'center',
+    backgroundColor: '#f0fff4',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    gap: 8,
+  },
+  ubicacionSeleccionadaNombre: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#221329',
+  },
+  ubicacionSeleccionadaDireccion: {
+    fontSize: 10,
+    color: '#666',
+    flex: 1,
+  },
+  sinUbicacionText: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
   },
 });

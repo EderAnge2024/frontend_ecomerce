@@ -191,3 +191,34 @@ export const updateUserInfo = async (id, userData) => {
     throw error;
   }
 };
+
+// ============ ACTUALIZAR CREDENCIALES ============
+
+export const updateCredentials = async (id, credentials) => {
+  try {
+    const url = `${BASE_URL}/usuarios/update-credentials/${id}`;
+    console.log('🌐 updateCredentials service llamado');
+    console.log('URL:', url);
+    console.log('ID:', id);
+    console.log('Credentials:', { usuario: credentials.usuario, contrasena: '***' });
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials),
+    });
+    
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response statusText:', response.statusText);
+    
+    const data = await response.json();
+    console.log('📦 Response data:', data);
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Error en updateCredentials service:', error);
+    throw error;
+  }
+};

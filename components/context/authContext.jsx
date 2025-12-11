@@ -90,10 +90,16 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = async (userData) => {
     try {
+      console.log('🔄 updateUser llamado en AuthContext');
+      console.log('📦 Datos anteriores:', user);
+      console.log('📦 Datos nuevos:', userData);
+      
       setUser(userData);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+      
+      console.log('✅ Usuario actualizado en contexto y AsyncStorage');
     } catch (error) {
-      console.error('Error actualizando usuario:', error);
+      console.error('❌ Error actualizando usuario:', error);
     }
   };
 
