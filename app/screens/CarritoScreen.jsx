@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, SafeAreaView, ScrollView } from "react-native";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Modal, TextInput, SafeAreaView, ScrollView, Image } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from "@/components/context/carritoContext";
 import { useAuth } from "@/components/context/authContext";
@@ -180,18 +180,18 @@ export default function CarritoScreen() {
             {carrito.map((item) => (
               <View key={item.id.toString()} style={styles.item}>
                 {/* Imagen del producto */}
-                {item.imagen && (
-                  <img 
-                    src={item.imagen} 
-                    alt={item.nombre}
+                {item.imagen && item.imagen.trim() !== '' && (
+                  <Image 
+                    source={{ uri: item.imagen || 'https://via.placeholder.com/50x60?text=No+Image' }}
                     style={{
                       width: 50,
                       height: 60,
-                      objectFit: 'contain',
                       borderRadius: 8,
                       marginRight: 12,
                       backgroundColor: '#f9f9f9',
                     }}
+                    resizeMode="contain"
+                    onError={() => console.log('Error loading image:', item.imagen)}
                   />
                 )}
                 
@@ -331,18 +331,18 @@ export default function CarritoScreen() {
                 <Text style={styles.productosModalTitle}>Productos a comprar:</Text>
                 {carrito.map((item) => (
                   <View key={item.id.toString()} style={styles.productoModalItem}>
-                    {item.imagen && (
-                      <img 
-                        src={item.imagen} 
-                        alt={item.nombre}
+                    {item.imagen && item.imagen.trim() !== '' && (
+                      <Image 
+                        source={{ uri: item.imagen || 'https://via.placeholder.com/40x40?text=No+Image' }}
                         style={{
                           width: 40,
                           height: 40,
-                          objectFit: 'contain',
                           borderRadius: 6,
                           marginRight: 10,
                           backgroundColor: '#f9f9f9',
                         }}
+                        resizeMode="contain"
+                        onError={() => console.log('Error loading modal image:', item.imagen)}
                       />
                     )}
                     <View style={styles.productoModalInfo}>

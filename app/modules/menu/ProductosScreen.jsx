@@ -348,18 +348,44 @@ const ProductoCard = ({ item, onAgregar }) => (
       </Text>
       <Text style={styles.category}>{item.category.toUpperCase()}</Text>
       <Text style={styles.price}>S/ {item.price.toFixed(2)}</Text>
+      
+      {/* Mostrar stock */}
+      <View style={styles.stockContainer}>
+        <Ionicons 
+          name="cube-outline" 
+          size={12} 
+          color={item.stock <= 5 ? '#FF5722' : '#4CAF50'} 
+        />
+        <Text style={[
+          styles.stockText, 
+          item.stock <= 5 ? styles.stockBajo : styles.stockNormal
+        ]}>
+          Stock: {item.stock || 0}
+        </Text>
+      </View>
+      
       <TouchableOpacity
-        style={styles.button}
+        style={[
+          styles.button,
+          item.stock === 0 && styles.buttonDisabled
+        ]}
         onPress={() =>
-          onAgregar({
+          item.stock > 0 ? onAgregar({
             id: item.id,
             nombre: item.title,
             precio: item.price,
             imagen: item.image,
-          })
+            stock: item.stock,
+          }) : null
         }
+        disabled={item.stock === 0}
       >
-        <Text style={styles.buttonText}>Agregar</Text>
+        <Text style={[
+          styles.buttonText,
+          item.stock === 0 && styles.buttonTextDisabled
+        ]}>
+          {item.stock === 0 ? 'Sin Stock' : 'Agregar'}
+        </Text>
       </TouchableOpacity>
     </View>
   </View>
@@ -559,16 +585,39 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginVertical: 5,
   },
+  stockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  stockText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  stockNormal: {
+    color: '#4CAF50',
+  },
+  stockBajo: {
+    color: '#FF5722',
+  },
   button: {
     backgroundColor: '#8A00D4',
     borderRadius: 8,
     paddingVertical: 6,
     alignItems: 'center',
   },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 13,
+  },
+  buttonTextDisabled: {
+    color: '#999',
   },
   loader: {
     flex: 1,

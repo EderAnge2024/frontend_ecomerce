@@ -14,6 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../components/context/authContext';
 import { useRouter } from 'expo-router';
+import InputValidator from '../../components/security/InputValidator';
+import SecureLogger from '../../components/security/SecureLogger';
 
 const Register = ({ onSuccess }) => {
   const [nombre, setNombre] = useState('');
@@ -30,40 +32,67 @@ const Register = ({ onSuccess }) => {
   const { register } = useAuth();
   const router = useRouter();
 
+  const validatePassword = (password) => {
+    if (!password || password.length < 8) return false;
+    
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    // Requiere al menos 3 de los 4 tipos de caracteres
+    const criteriaCount = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecialChar].filter(Boolean).length;
+    return criteriaCount >= 3;
+  };
+
+  const getPasswordRequirements = () => {
+    return 'La contraseña debe tener:\n• Mínimo 8 caracteres\n• Al menos 3 de estos tipos:\n  - Mayúsculas (A-Z)\n  - Minúsculas (a-z)\n  - Números (0-9)\n  - Símbolos (!@#$%^&*)';
+  };
+
   const handleRegister = async () => {
-    // Validaciones
+    // Validaciones básicas
     if (!nombre || !correo || !usuario || !password) {
-      alert('Por favor completa los campos obligatorios: nombre, correo, usuario y contraseña');
+      Alert.alert('Error', 'Por favor completa los campos obligatorios: nombre, correo, usuario y contraseña');
       return;
     }
 
     if (password !== confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
 
-    if (password.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres');
+    // Validar datos con InputValidator
+    const userData = {
+      nombre,
+      apellido: apellido || '',
+      correo,
+      telefono: telefono || '',
+      direccion: direccion || '',
+      usuario,
+      contrasena: password,
+    };
+
+    const validation = InputValidator.validateRegistrationData(userData);
+
+    if (!validation.isValid) {
+      Alert.alert('Error de validación', validation.errors.join('\n'));
       return;
     }
 
     try {
       setLoading(true);
-      const userData = {
-        nombre,
-        apellido: apellido || '',
-        correo,
-        telefono: telefono || '',
-        direccion: direccion || '',
+      SecureLogger.auth('Iniciando proceso de registro');
+
+      const registrationData = {
+        ...validation.sanitized,
         rol: 'cliente', // Por defecto siempre cliente
-        usuario,
-        contrasena: password,
       };
 
-      const response = await register(userData);
+      const response = await register(registrationData);
       
       if (response.success) {
-        alert('¡Registro exitoso! Tu cuenta ha sido creada correctamente');
+        SecureLogger.success('Registro exitoso');
+        Alert.alert('¡Éxito!', '¡Registro exitoso! Tu cuenta ha sido creada correctamente');
         
         // Si hay callback onSuccess (cuando se usa en modal), ejecutarlo
         if (onSuccess) {
@@ -71,11 +100,20 @@ const Register = ({ onSuccess }) => {
         }
         // No navegar aquí - el componente padre maneja la navegación
       } else {
-        alert(response.message || 'No se pudo crear la cuenta');
+        SecureLogger.warn('Registro falló');
+        // Mostrar mensaje específico del backend
+        const errorMessage = response.message || 'No se pudo crear la cuenta';
+        
+        // Si el error es sobre contraseña, mostrar los requisitos
+        if (errorMessage.toLowerCase().includes('contraseña') || errorMessage.toLowerCase().includes('password')) {
+          Alert.alert('Error de contraseña', `${errorMessage}\n\n${getPasswordRequirements()}`);
+        } else {
+          Alert.alert('Error', errorMessage);
+        }
       }
     } catch (error) {
-      console.error('Error en registro:', error);
-      alert('Ocurrió un error al registrar la cuenta');
+      SecureLogger.error('Error en proceso de registro', error);
+      Alert.alert('Error', 'Ocurrió un error al registrar la cuenta');
     } finally {
       setLoading(false);
     }
@@ -201,6 +239,17 @@ const Register = ({ onSuccess }) => {
                 color="#666"
               />
             </TouchableOpacity>
+          </View>
+
+          {/* Requisitos de contraseña */}
+          <View style={styles.passwordRequirements}>
+            <Text style={styles.requirementsTitle}>Requisitos de contraseña:</Text>
+            <Text style={styles.requirementsText}>• Mínimo 8 caracteres</Text>
+            <Text style={styles.requirementsText}>• Al menos 3 de estos tipos:</Text>
+            <Text style={styles.requirementsSubText}>  - Mayúsculas (A-Z)</Text>
+            <Text style={styles.requirementsSubText}>  - Minúsculas (a-z)</Text>
+            <Text style={styles.requirementsSubText}>  - Números (0-9)</Text>
+            <Text style={styles.requirementsSubText}>  - Símbolos (!@#$%^&*)</Text>
           </View>
 
           {/* Campo de Confirmar Contraseña */}
@@ -367,6 +416,31 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  passwordRequirements: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#221329',
+  },
+  requirementsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#221329',
+    marginBottom: 6,
+  },
+  requirementsText: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 2,
+  },
+  requirementsSubText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    marginBottom: 1,
   },
 });
 

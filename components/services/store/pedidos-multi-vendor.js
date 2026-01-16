@@ -1,4 +1,5 @@
 import BASE_URL from '../apiEcomerce';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ============ SERVICIOS PARA PEDIDOS MULTI-VENDEDOR ============
 
@@ -12,20 +13,33 @@ import BASE_URL from '../apiEcomerce';
  */
 export const procesarCompraMultiVendedor = async (compraData) => {
   try {
+    // Obtener token de autenticación - REQUERIDO
+    const token = await AsyncStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Token de autenticación requerido para procesar compras');
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
     console.log('🛒 Enviando compra multi-vendedor:', compraData);
+    console.log('🔑 Token disponible:', !!token);
     
     const response = await fetch(`${BASE_URL}/pedidos/multi-vendor`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(compraData),
     });
 
     const data = await response.json();
+    console.log('📡 Response status:', response.status);
+    console.log('📦 Response data:', data);
     
     if (!response.ok) {
-      throw new Error(data.message || 'Error al procesar la compra');
+      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
     }
     
     console.log('✅ Compra multi-vendedor procesada:', data);
@@ -43,18 +57,33 @@ export const procesarCompraMultiVendedor = async (compraData) => {
  */
 export const previewDivisionPorVendedor = async (productos) => {
   try {
+    // Obtener token de autenticación - REQUERIDO
+    const token = await AsyncStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Token de autenticación requerido');
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
+    console.log('🛒 Obteniendo preview de división:', productos);
+    console.log('🔑 Token disponible:', !!token);
+    
     const response = await fetch(`${BASE_URL}/pedidos/preview-division`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ productos }),
     });
 
     const data = await response.json();
+    console.log('📡 Response status:', response.status);
+    console.log('📦 Response data:', data);
     
     if (!response.ok) {
-      throw new Error(data.message || 'Error al generar preview');
+      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
     }
     
     return data;
@@ -71,11 +100,31 @@ export const previewDivisionPorVendedor = async (productos) => {
  */
 export const getPedidosByVendedor = async (id_vendedor) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/vendedor/${id_vendedor}`);
+    // Obtener token de autenticación - REQUERIDO (solo admins)
+    const token = await AsyncStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Token de autenticación requerido');
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
+    console.log('🛒 Obteniendo pedidos del vendedor:', id_vendedor);
+    console.log('🔑 Token disponible:', !!token);
+    
+    const response = await fetch(`${BASE_URL}/pedidos/vendedor/${id_vendedor}`, {
+      headers
+    });
+    
     const data = await response.json();
+    console.log('📡 Response status:', response.status);
+    console.log('📦 Response data:', data);
     
     if (!response.ok) {
-      throw new Error(data.message || 'Error al obtener pedidos del vendedor');
+      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
     }
     
     return data;
@@ -92,11 +141,31 @@ export const getPedidosByVendedor = async (id_vendedor) => {
  */
 export const getResumenPedidoMaestro = async (id_pedido_maestro) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/maestro/${id_pedido_maestro}`);
+    // Obtener token de autenticación - REQUERIDO
+    const token = await AsyncStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Token de autenticación requerido');
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
+    console.log('🛒 Obteniendo resumen del pedido maestro:', id_pedido_maestro);
+    console.log('🔑 Token disponible:', !!token);
+    
+    const response = await fetch(`${BASE_URL}/pedidos/maestro/${id_pedido_maestro}`, {
+      headers
+    });
+    
     const data = await response.json();
+    console.log('📡 Response status:', response.status);
+    console.log('📦 Response data:', data);
     
     if (!response.ok) {
-      throw new Error(data.message || 'Error al obtener resumen del pedido maestro');
+      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
     }
     
     return data;
@@ -114,12 +183,33 @@ export const getResumenPedidoMaestro = async (id_pedido_maestro) => {
  */
 export const getNotificacionesPedidos = async (id_usuario, solo_no_leidas = false) => {
   try {
+    // Obtener token de autenticación - REQUERIDO + ownership
+    const token = await AsyncStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Token de autenticación requerido');
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
     const url = `${BASE_URL}/pedidos/notificaciones/${id_usuario}${solo_no_leidas ? '?solo_no_leidas=true' : ''}`;
-    const response = await fetch(url);
+    
+    console.log('🛒 Obteniendo notificaciones:', { id_usuario, solo_no_leidas });
+    console.log('🔑 Token disponible:', !!token);
+    
+    const response = await fetch(url, {
+      headers
+    });
+    
     const data = await response.json();
+    console.log('📡 Response status:', response.status);
+    console.log('📦 Response data:', data);
     
     if (!response.ok) {
-      throw new Error(data.message || 'Error al obtener notificaciones');
+      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
     }
     
     return data;
@@ -136,17 +226,32 @@ export const getNotificacionesPedidos = async (id_usuario, solo_no_leidas = fals
  */
 export const marcarNotificacionLeida = async (id_notificacion) => {
   try {
+    // Obtener token de autenticación - REQUERIDO
+    const token = await AsyncStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('Token de autenticación requerido');
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
+    console.log('🛒 Marcando notificación como leída:', id_notificacion);
+    console.log('🔑 Token disponible:', !!token);
+    
     const response = await fetch(`${BASE_URL}/pedidos/notificaciones/${id_notificacion}/leer`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     const data = await response.json();
+    console.log('📡 Response status:', response.status);
+    console.log('📦 Response data:', data);
     
     if (!response.ok) {
-      throw new Error(data.message || 'Error al marcar notificación como leída');
+      throw new Error(data.message || `Error ${response.status}: ${response.statusText}`);
     }
     
     return data;

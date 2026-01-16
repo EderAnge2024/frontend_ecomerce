@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginUser, registerUser } from '../services/store/users';
+import SecureStorageManager from '../security/SecureStorage';
+import SecureLogger from '../security/SecureLogger';
 
 const AuthContext = createContext();
 
@@ -15,6 +16,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authVersion, setAuthVersion] = useState(0); // Para forzar re-renders
 
   // Cargar usuario al iniciar la app
   useEffect(() => {
@@ -23,12 +25,20 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
+      SecureLogger.debug('Cargando usuario desde almacenamiento seguro');
+      
+      // Usar almacenamiento seguro en lugar de AsyncStorage
+      const userData = await SecureStorageManager.getUser();
+      const token = await SecureStorageManager.getToken();
+      
+      if (userData && token) {
+        setUser(userData);
+        SecureLogger.success('Usuario cargado exitosamente');
+      } else {
+        SecureLogger.info('No hay usuario almacenado');
       }
     } catch (error) {
-      console.error('Error cargando usuario:', error);
+      SecureLogger.error('Error cargando usuario', error);
     } finally {
       setLoading(false);
     }
@@ -36,24 +46,77 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (usuario, contrasena) => {
     try {
+      console.log('🔐 AuthContext: Iniciando proceso de login');
+      console.log('🔐 Usuario:', usuario);
+      console.log('🔐 Contraseña length:', contrasena?.length);
+      
       const response = await loginUser(usuario, contrasena);
+      console.log('🔐 Respuesta del servicio loginUser:', JSON.stringify(response, null, 2));
       
       if (response.success) {
-        const userData = response.user;
+        // El backend devuelve { success: true, data: { user: {...}, tokens: {...} } }
+        const userData = response.data?.user || response.user;
+        const tokens = response.data?.tokens || response.tokens;
+        
+        console.log('🔐 Datos de usuario extraídos:', JSON.stringify(userData, null, 2));
+        console.log('🔐 Tokens extraídos:', tokens ? 'PRESENTES' : 'AUSENTES');
+        
+        if (tokens?.accessToken) {
+          console.log('🔐 Token access (primeros 20 chars):', tokens.accessToken.substring(0, 20));
+        }
+        
+        console.log('🔐 Estableciendo usuario en estado...');
         setUser(userData);
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
-        return { success: true, user: userData };
+        
+        // Incrementar versión para forzar re-render
+        setAuthVersion(prev => prev + 1);
+        
+        console.log('🔐 Estado actualizado, usuario actual:', userData?.nombre, userData?.rol);
+        
+        // Usar almacenamiento seguro
+        console.log('🔐 Guardando usuario en almacenamiento...');
+        const userSaved = await SecureStorageManager.setUser(userData);
+        console.log('🔐 Usuario guardado:', userSaved);
+        
+        // Guardar token de forma segura
+        if (tokens?.accessToken) {
+          console.log('🔐 Guardando token en almacenamiento...');
+          const tokenSaved = await SecureStorageManager.setToken(tokens.accessToken);
+          console.log('🔐 Token guardado:', tokenSaved);
+        } else {
+          console.warn('⚠️ No se recibió token del backend');
+        }
+        
+        // Verificar permisos de admin
+        const isAdminUser = userData.rol === 'administrador';
+        console.log('🔐 Verificación de permisos admin:', {
+          rol: userData.rol,
+          es_super_admin: userData.es_super_admin,
+          isAdmin: isAdminUser
+        });
+        
+        // Debug: Mostrar datos almacenados
+        await SecureStorageManager.debugShowAllData();
+        
+        console.log('✅ Login completado exitosamente');
+        console.log('📤 Retornando:', { success: true, user: userData, isAdmin: isAdminUser });
+        
+        return { success: true, user: userData, isAdmin: isAdminUser };
       } else {
+        console.warn('❌ Login falló:', response.message);
         return { success: false, message: response.message };
       }
     } catch (error) {
-      console.error('Error en login:', error);
-      return { success: false, message: 'Error al iniciar sesión' };
+      console.error('💥 Error en login:', error);
+      console.error('💥 Stack:', error.stack);
+      return { success: false, message: 'Error al iniciar sesión: ' + error.message };
     }
   };
 
   const register = async (userData) => {
     try {
+      SecureLogger.auth('Iniciando proceso de registro');
+      
       const response = await registerUser(userData);
       
       if (response.success) {
@@ -61,26 +124,38 @@ export const AuthProvider = ({ children }) => {
         const loginResponse = await login(userData.usuario, userData.contrasena);
         return loginResponse;
       } else {
+        SecureLogger.warn('Registro falló', { message: response.message });
         return { success: false, message: response.message || 'Error al registrar' };
       }
     } catch (error) {
-      console.error('Error en register:', error);
+      SecureLogger.error('Error en register', error);
       return { success: false, message: 'Error al registrar usuario' };
     }
   };
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('user');
+      SecureLogger.auth('Iniciando logout');
+      
+      // Limpiar todos los datos sensibles de forma segura
+      await SecureStorageManager.clearAllSecureData();
       setUser(null);
+      setAuthVersion(prev => prev + 1); // Forzar re-render
+      
+      SecureLogger.success('Logout completado - Datos sensibles eliminados');
     } catch (error) {
-      console.error('Error en logout:', error);
+      SecureLogger.error('Error en logout', error);
     }
   };
 
   const isAdmin = () => {
+    // Permitir acceso a admin si es administrador, independientemente de es_super_admin
     const result = user?.rol === 'administrador';
-    console.log('🔍 isAdmin() llamado:', { user, rol: user?.rol, result });
+    console.log('🔐 Verificación isAdmin:', { 
+      rol: user?.rol, 
+      es_super_admin: user?.es_super_admin,
+      result 
+    });
     return result;
   };
 
@@ -90,28 +165,54 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = async (userData) => {
     try {
-      console.log('🔄 updateUser llamado en AuthContext');
-      console.log('📦 Datos anteriores:', user);
-      console.log('📦 Datos nuevos:', userData);
+      SecureLogger.debug('Actualizando datos de usuario');
       
       setUser(userData);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await SecureStorageManager.setUser(userData);
+      setAuthVersion(prev => prev + 1); // Forzar re-render
       
-      console.log('✅ Usuario actualizado en contexto y AsyncStorage');
+      SecureLogger.success('Usuario actualizado en contexto y almacenamiento seguro');
     } catch (error) {
-      console.error('❌ Error actualizando usuario:', error);
+      SecureLogger.error('Error actualizando usuario', error);
     }
   };
 
-  // Refrescar los datos del usuario desde AsyncStorage
+  // Refrescar los datos del usuario desde almacenamiento seguro
   const refreshUser = async () => {
     try {
-      const userData = await AsyncStorage.getItem('user');
+      const userData = await SecureStorageManager.getUser();
       if (userData) {
-        setUser(JSON.parse(userData));
+        setUser(userData);
+        setAuthVersion(prev => prev + 1); // Forzar re-render
+        SecureLogger.debug('Usuario refrescado desde almacenamiento seguro');
       }
     } catch (error) {
-      console.error('Error refrescando usuario:', error);
+      SecureLogger.error('Error refrescando usuario', error);
+    }
+  };
+
+  // Verificar si el token sigue siendo válido
+  const checkTokenValidity = async () => {
+    try {
+      const token = await SecureStorageManager.getToken();
+      
+      if (!token) {
+        SecureLogger.warn('No hay token disponible');
+        await logout();
+        return false;
+      }
+      
+      if (!SecureStorageManager.isTokenValid(token)) {
+        SecureLogger.warn('Token expirado, cerrando sesión');
+        await logout();
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      SecureLogger.error('Error verificando validez del token', error);
+      await logout();
+      return false;
     }
   };
 
@@ -123,13 +224,15 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     refreshUser,
+    checkTokenValidity,
     isAdmin,
     isClient,
     isAuthenticated: !!user,
+    authVersion, // Incluir versión para tracking
   };
 
-  // Log para debugging
-  console.log('📊 AuthContext state:', { 
+  // Log de estado (sanitizado)
+  SecureLogger.debug('AuthContext state', { 
     hasUser: !!user, 
     userRol: user?.rol, 
     isAuthenticated: !!user 

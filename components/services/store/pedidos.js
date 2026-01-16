@@ -1,4 +1,8 @@
-import BASE_URL from '../apiEcomerce';
+import SecureHttpClient from '../../security/SecureHttpClient';
+import SecureLogger from '../../security/SecureLogger';
+import { ENV_CONFIG } from '../../../config/env';
+
+const API_BASE_URL = ENV_CONFIG.API_BASE_URL;
 
 // ============ SERVICIOS DE PEDIDOS ============
 // Funciones para interactuar con la API de pedidos desde el frontend
@@ -10,17 +14,23 @@ import BASE_URL from '../apiEcomerce';
  */
 export const createPedido = async (pedidoData) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(pedidoData),
-    });
+    // Validar datos de entrada
+    if (!pedidoData.id_usuario || isNaN(parseInt(pedidoData.id_usuario))) {
+      throw new Error('ID de usuario inválido');
+    }
+    
+    if (!pedidoData.total || isNaN(parseFloat(pedidoData.total)) || parseFloat(pedidoData.total) <= 0) {
+      throw new Error('Total del pedido inválido');
+    }
+    
+    SecureLogger.debug('Creando pedido');
+    
+    const response = await SecureHttpClient.post(`${API_BASE_URL}/pedidos`, pedidoData);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en createPedido:', error);
+    SecureLogger.error('Error en createPedido', error);
     throw error;
   }
 };
@@ -32,11 +42,14 @@ export const createPedido = async (pedidoData) => {
  */
 export const getAllPedidos = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos`);
+    SecureLogger.debug('Obteniendo todos los pedidos');
+    
+    const response = await SecureHttpClient.get(`${API_BASE_URL}/pedidos`);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en getAllPedidos:', error);
+    SecureLogger.error('Error en getAllPedidos', error);
     throw error;
   }
 };
@@ -48,11 +61,19 @@ export const getAllPedidos = async () => {
  */
 export const getPedidoById = async (id) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/${id}`);
+    // Validar ID
+    if (!id || isNaN(parseInt(id))) {
+      throw new Error('ID de pedido inválido');
+    }
+    
+    SecureLogger.debug('Obteniendo pedido por ID');
+    
+    const response = await SecureHttpClient.get(`${API_BASE_URL}/pedidos/${id}`);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en getPedidoById:', error);
+    SecureLogger.error('Error en getPedidoById', error);
     throw error;
   }
 };
@@ -65,11 +86,19 @@ export const getPedidoById = async (id) => {
  */
 export const getPedidosByUser = async (id_usuario) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/usuario/${id_usuario}`);
+    // Validar ID de usuario
+    if (!id_usuario || isNaN(parseInt(id_usuario))) {
+      throw new Error('ID de usuario inválido');
+    }
+    
+    SecureLogger.debug('Obteniendo pedidos del usuario');
+    
+    const response = await SecureHttpClient.get(`${API_BASE_URL}/pedidos/usuario/${id_usuario}`);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en getPedidosByUser:', error);
+    SecureLogger.error('Error en getPedidosByUser', error);
     throw error;
   }
 };
@@ -82,11 +111,19 @@ export const getPedidosByUser = async (id_usuario) => {
  */
 export const getPedidosByAdmin = async (id_admin) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/admin/${id_admin}`);
+    // Validar ID de admin
+    if (!id_admin || isNaN(parseInt(id_admin))) {
+      throw new Error('ID de administrador inválido');
+    }
+    
+    SecureLogger.debug('Obteniendo pedidos del admin');
+    
+    const response = await SecureHttpClient.get(`${API_BASE_URL}/pedidos/admin/${id_admin}`);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en getPedidosByAdmin:', error);
+    SecureLogger.error('Error en getPedidosByAdmin', error);
     throw error;
   }
 };
@@ -99,17 +136,28 @@ export const getPedidosByAdmin = async (id_admin) => {
  */
 export const updatePedido = async (id, pedidoData) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(pedidoData),
-    });
+    // Validar ID
+    if (!id || isNaN(parseInt(id))) {
+      throw new Error('ID de pedido inválido');
+    }
+    
+    // Validar datos si están presentes
+    if (pedidoData.total && (isNaN(parseFloat(pedidoData.total)) || parseFloat(pedidoData.total) <= 0)) {
+      throw new Error('Total inválido');
+    }
+    
+    if (pedidoData.estado && !['Pendiente', 'En proceso', 'Entregado'].includes(pedidoData.estado)) {
+      throw new Error('Estado inválido');
+    }
+    
+    SecureLogger.debug('Actualizando pedido');
+    
+    const response = await SecureHttpClient.put(`${API_BASE_URL}/pedidos/${id}`, pedidoData);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en updatePedido:', error);
+    SecureLogger.error('Error en updatePedido', error);
     throw error;
   }
 };
@@ -123,17 +171,24 @@ export const updatePedido = async (id, pedidoData) => {
  */
 export const updatePedidoEstado = async (id, estado) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/${id}/estado`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ estado }),
-    });
+    // Validar ID
+    if (!id || isNaN(parseInt(id))) {
+      throw new Error('ID de pedido inválido');
+    }
+    
+    // Validar estado
+    if (!estado || !['Pendiente', 'En proceso', 'Entregado'].includes(estado)) {
+      throw new Error('Estado inválido. Debe ser: Pendiente, En proceso o Entregado');
+    }
+    
+    SecureLogger.debug('Actualizando estado del pedido');
+    
+    const response = await SecureHttpClient.put(`${API_BASE_URL}/pedidos/${id}/estado`, { estado });
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en updatePedidoEstado:', error);
+    SecureLogger.error('Error en updatePedidoEstado', error);
     throw error;
   }
 };
@@ -145,13 +200,19 @@ export const updatePedidoEstado = async (id, estado) => {
  */
 export const deletePedido = async (id) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedidos/${id}`, {
-      method: 'DELETE',
-    });
+    // Validar ID
+    if (!id || isNaN(parseInt(id))) {
+      throw new Error('ID de pedido inválido');
+    }
+    
+    SecureLogger.debug('Eliminando pedido');
+    
+    const response = await SecureHttpClient.delete(`${API_BASE_URL}/pedidos/${id}`);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en deletePedido:', error);
+    SecureLogger.error('Error en deletePedido', error);
     throw error;
   }
 };
@@ -166,20 +227,34 @@ export const deletePedido = async (id) => {
  */
 export const createPedidoProducto = async (pedidoProductoData) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedido-productos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(pedidoProductoData),
-    });
+    // Validar datos de entrada
+    if (!pedidoProductoData.id_pedido || isNaN(parseInt(pedidoProductoData.id_pedido))) {
+      throw new Error('ID de pedido inválido');
+    }
+    
+    if (!pedidoProductoData.id_producto || isNaN(parseInt(pedidoProductoData.id_producto))) {
+      throw new Error('ID de producto inválido');
+    }
+    
+    if (!pedidoProductoData.cantidad || isNaN(parseInt(pedidoProductoData.cantidad)) || parseInt(pedidoProductoData.cantidad) <= 0) {
+      throw new Error('Cantidad inválida');
+    }
+    
+    if (!pedidoProductoData.precio || isNaN(parseFloat(pedidoProductoData.precio)) || parseFloat(pedidoProductoData.precio) <= 0) {
+      throw new Error('Precio inválido');
+    }
+    
+    SecureLogger.debug('Creando pedido-producto');
+    
+    const response = await SecureHttpClient.post(`${API_BASE_URL}/pedido-productos`, pedidoProductoData);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en createPedidoProducto:', error)
-    throw error
+    SecureLogger.error('Error en createPedidoProducto', error);
+    throw error;
   }
-}
+};
 
 /**
  * Obtener todos los productos de un pedido específico
@@ -188,11 +263,19 @@ export const createPedidoProducto = async (pedidoProductoData) => {
  */
 export const getProductosByPedido = async (id_pedido) => {
   try {
-    const response = await fetch(`${BASE_URL}/pedido-productos/pedido/${id_pedido}`);
+    // Validar ID de pedido
+    if (!id_pedido || isNaN(parseInt(id_pedido))) {
+      throw new Error('ID de pedido inválido');
+    }
+    
+    SecureLogger.debug('Obteniendo productos del pedido');
+    
+    const response = await SecureHttpClient.get(`${API_BASE_URL}/pedido-productos/pedido/${id_pedido}`);
     const data = await response.json();
+    
     return data;
   } catch (error) {
-    console.error('Error en getProductosByPedido:', error);
+    SecureLogger.error('Error en getProductosByPedido', error);
     throw error;
   }
 };

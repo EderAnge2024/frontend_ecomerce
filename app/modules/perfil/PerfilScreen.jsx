@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../components/context/authContext';
@@ -12,9 +12,10 @@ import MyProfile from './myprofile';
 import MyDirection from './mydirection';
 import MyContactenos from './mycontactenos';
 import ChangeCredentials from './ChangeCredentials';
+import AuthStateDebug from '../../../components/debug/AuthStateDebug';
 
 export default function PerfilScreen() {
-  const { user, logout, isAdmin, isAuthenticated, refreshUser } = useAuth();
+  const { user, logout, isAdmin, isAuthenticated, refreshUser, authVersion } = useAuth();
   const navigation = useNavigation();
   
   // Estados para modales
@@ -34,6 +35,58 @@ export default function PerfilScreen() {
   const [expandedPedido, setExpandedPedido] = useState(null);
   const [productosPedido, setProductosPedido] = useState({});
   const [productosInfo, setProductosInfo] = useState({});
+
+  // Estado para forzar re-render
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  // Efecto para debug del estado de autenticación
+  useEffect(() => {
+    console.log('🔍 PerfilScreen - Estado de autenticación:', {
+      authVersion,
+      isAuthenticated,
+      hasUser: !!user,
+      userRol: user?.rol,
+      userAdmin: user?.es_super_admin
+    });
+  }, [isAuthenticated, user, authVersion]);
+
+  // Función para manejar el éxito del login
+  const handleLoginSuccess = async () => {
+    console.log('✅ PerfilScreen - Login exitoso, cerrando modal y refrescando usuario');
+    setShowLoginModal(false);
+    
+    // Refrescar el usuario para asegurar que el estado esté actualizado
+    await refreshUser();
+    
+    // Forzar re-render del componente
+    setForceUpdate(prev => prev + 1);
+    
+    console.log('🔄 PerfilScreen - Usuario refrescado después del login');
+    
+    // Verificar si el usuario es admin y navegar al AdminHome
+    setTimeout(() => {
+      if (isAdmin()) {
+        console.log('👑 Usuario es administrador, navegando a AdminHome');
+        navigation.navigate('AdminHome');
+      } else {
+        console.log('👤 Usuario es cliente, permaneciendo en PerfilScreen');
+      }
+    }, 300);
+  };
+
+  // Función para manejar el éxito del registro
+  const handleRegisterSuccess = async () => {
+    console.log('✅ PerfilScreen - Registro exitoso, cerrando modal y refrescando usuario');
+    setShowRegisterModal(false);
+    
+    // Refrescar el usuario para asegurar que el estado esté actualizado
+    await refreshUser();
+    
+    // Forzar re-render del componente
+    setForceUpdate(prev => prev + 1);
+    
+    console.log('🔄 PerfilScreen - Usuario refrescado después del registro');
+  };
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
@@ -144,6 +197,7 @@ export default function PerfilScreen() {
   if (!isAuthenticated) {
     return (
       <View style={styles.container}>
+        <AuthStateDebug />
         <ScrollView contentContainerStyle={styles.notAuthContainer}>
           <Ionicons name="person-circle-outline" size={100} color="#221329" />
           <Text style={styles.notAuthTitle}>Bienvenido</Text>
@@ -201,10 +255,7 @@ export default function PerfilScreen() {
               </TouchableOpacity>
             </View>
             <Login 
-              onSuccess={() => {
-                console.log('✅ Login exitoso, cerrando modal');
-                setShowLoginModal(false);
-              }}
+              onSuccess={handleLoginSuccess}
               onForgotPassword={() => {
                 console.log('🔄 Cambiando a modal de recuperación');
                 setShowLoginModal(false);
@@ -238,10 +289,7 @@ export default function PerfilScreen() {
               </TouchableOpacity>
             </View>
             <Register 
-              onSuccess={() => {
-                console.log('✅ Registro exitoso, cerrando modal');
-                setShowRegisterModal(false);
-              }} 
+              onSuccess={handleRegisterSuccess}
             />
           </View>
         </Modal>
@@ -274,6 +322,7 @@ export default function PerfilScreen() {
   // Usuario autenticado
   return (
     <View style={styles.container}>
+      <AuthStateDebug />
       <ScrollView>
         {/* Header del Perfil */}
         <View style={styles.header}>
@@ -293,7 +342,10 @@ export default function PerfilScreen() {
           {isAdmin() && (
             <TouchableOpacity 
               style={[styles.menuItem, styles.adminItem]}
-              onPress={() => navigation.navigate('AdminHome')}
+              onPress={() => {
+                console.log('🔘 Navegando a AdminHome desde PerfilScreen');
+                navigation.navigate('AdminHome');
+              }}
             >
               <View style={[styles.menuIcon, styles.adminIcon]}>
                 <Ionicons name="shield-checkmark" size={24} color="#fff" />

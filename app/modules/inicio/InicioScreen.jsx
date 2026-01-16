@@ -19,7 +19,7 @@ import { useCart } from "@/components/context/carritoContext";
 import { useAuth } from "@/components/context/authContext";
 import { useSearch } from "../../context/searchContext";
 import RecuperarPassword from '../../auth/RecuperarPassword';
-import { getProductosDatabase } from "@/components/services/store/productos";
+import { getProductosCombinados, getAllProductos } from "@/components/services/store/productos";
 
 const { width } = Dimensions.get("window");
 
@@ -44,15 +44,30 @@ export default function InicioScreen() {
   const cargarProductos = async () => {
     try {
       setCargando(true);
-      console.log('🛍️ Cargando productos de la base de datos...');
-      const response = await getProductosDatabase();
+      console.log('🛍️ Cargando productos para el catálogo del cliente...');
+      
+      // Usar productos combinados (BD + API externa)
+      const response = await getProductosCombinados();
       
       if (response.success) {
         setProductos(response.productos);
-        console.log(`✅ ${response.productos.length} productos cargados de BD`);
+        console.log(`✅ ${response.productos.length} productos cargados para el cliente`);
+        
+        if (response.stats) {
+          console.log(`📊 BD: ${response.stats.database}, API externa: ${response.stats.api}`);
+        }
       } else {
-        console.error('❌ Error en respuesta:', response);
-        Alert.alert('Error', 'No se pudieron cargar los productos');
+        // Fallback a todos los productos si combinados falla
+        console.log('⚠️ Productos combinados falló, intentando getAllProductos...');
+        const fallbackResponse = await getAllProductos();
+        
+        if (fallbackResponse.success) {
+          setProductos(fallbackResponse.productos);
+          console.log(`✅ ${fallbackResponse.productos.length} productos cargados (fallback)`);
+        } else {
+          console.error('❌ Error en ambas respuestas:', fallbackResponse);
+          Alert.alert('Error', 'No se pudieron cargar los productos');
+        }
       }
     } catch (error) {
       console.error('❌ Error cargando productos:', error);
@@ -96,6 +111,13 @@ export default function InicioScreen() {
       );
       return;
     }
+    
+    // Validar stock antes de agregar
+    if (producto.stock === 0) {
+      Alert.alert('Sin Stock', 'Este producto no tiene stock disponible');
+      return;
+    }
+    
     agregarAlCarrito(producto);
     Alert.alert('¡Agregado!', 'Producto agregado al carrito');
   };
@@ -231,25 +253,55 @@ export default function InicioScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Los más comprados</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {masComprados.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <Image source={{ uri: item.image }} style={styles.cardImage} />
+          {masComprados.map((item, index) => (
+            <View key={`popular-${item.id}-${index}`} style={styles.card}>
+              <Image 
+                source={{ uri: (item.image && item.image.trim() !== '') ? item.image : 'https://via.placeholder.com/150x150?text=No+Image' }} 
+                style={styles.cardImage}
+                onError={() => console.log('Error loading popular product image:', item.image)}
+              />
               <Text numberOfLines={2} style={styles.cardTitle}>
                 {item.title}
               </Text>
               <Text style={styles.cardPrice}>S/ {item.price.toFixed(2)}</Text>
+              
+              {/* Mostrar stock */}
+              <View style={styles.stockContainer}>
+                <Ionicons 
+                  name="cube-outline" 
+                  size={12} 
+                  color={item.stock <= 5 ? '#FF5722' : '#4CAF50'} 
+                />
+                <Text style={[
+                  styles.stockText, 
+                  item.stock <= 5 ? styles.stockBajo : styles.stockNormal
+                ]}>
+                  Stock: {item.stock || 0}
+                </Text>
+              </View>
+              
               <TouchableOpacity
-                style={styles.button}
+                style={[
+                  styles.button,
+                  item.stock === 0 && styles.buttonDisabled
+                ]}
                 onPress={() =>
-                  handleAgregarCarrito({
+                  item.stock > 0 ? handleAgregarCarrito({
                     id: item.id,
                     nombre: item.title,
                     precio: item.price,
                     imagen: item.image,
-                  })
+                    stock: item.stock,
+                  }) : null
                 }
+                disabled={item.stock === 0}
               >
-                <Text style={styles.buttonText}>Agregar</Text>
+                <Text style={[
+                  styles.buttonText,
+                  item.stock === 0 && styles.buttonTextDisabled
+                ]}>
+                  {item.stock === 0 ? 'Sin Stock' : 'Agregar'}
+                </Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -268,25 +320,55 @@ export default function InicioScreen() {
           </View>
         ) : (
           <View style={styles.productsGrid}>
-            {productosFiltrados.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <Image source={{ uri: item.image }} style={styles.cardImage} />
+            {productosFiltrados.map((item, index) => (
+            <View key={`product-${item.id}-${index}`} style={styles.card}>
+              <Image 
+                source={{ uri: (item.image && item.image.trim() !== '') ? item.image : 'https://via.placeholder.com/150x150?text=No+Image' }} 
+                style={styles.cardImage}
+                onError={() => console.log('Error loading all product image:', item.image)}
+              />
               <Text numberOfLines={2} style={styles.cardTitle}>
                 {item.title}
               </Text>
               <Text style={styles.cardPrice}>S/ {item.price.toFixed(2)}</Text>
+              
+              {/* Mostrar stock */}
+              <View style={styles.stockContainer}>
+                <Ionicons 
+                  name="cube-outline" 
+                  size={12} 
+                  color={item.stock <= 5 ? '#FF5722' : '#4CAF50'} 
+                />
+                <Text style={[
+                  styles.stockText, 
+                  item.stock <= 5 ? styles.stockBajo : styles.stockNormal
+                ]}>
+                  Stock: {item.stock || 0}
+                </Text>
+              </View>
+              
               <TouchableOpacity
-                style={styles.button}
+                style={[
+                  styles.button,
+                  item.stock === 0 && styles.buttonDisabled
+                ]}
                 onPress={() =>
-                  handleAgregarCarrito({
+                  item.stock > 0 ? handleAgregarCarrito({
                     id: item.id,
                     nombre: item.title,
                     precio: item.price,
                     imagen: item.image,
-                  })
+                    stock: item.stock,
+                  }) : null
                 }
+                disabled={item.stock === 0}
               >
-                <Text style={styles.buttonText}>Agregar</Text>
+                <Text style={[
+                  styles.buttonText,
+                  item.stock === 0 && styles.buttonTextDisabled
+                ]}>
+                  {item.stock === 0 ? 'Sin Stock' : 'Agregar'}
+                </Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -462,8 +544,31 @@ const styles = StyleSheet.create({
   cardImage: { width: "100%", height: 120, borderRadius: 10, resizeMode: "contain" },
   cardTitle: { fontSize: 13, fontWeight: "600", marginTop: 5 },
   cardPrice: { fontSize: 14, fontWeight: "bold", color: "#8A00D4", marginVertical: 5 },
+  stockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  stockText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  stockNormal: {
+    color: '#4CAF50',
+  },
+  stockBajo: {
+    color: '#FF5722',
+  },
   button: { backgroundColor: "#8A00D4", borderRadius: 8, paddingVertical: 6, alignItems: "center" },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
   buttonText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+  buttonTextDisabled: {
+    color: '#999',
+  },
   adminButton: {
     position: 'absolute',
     top: 60,

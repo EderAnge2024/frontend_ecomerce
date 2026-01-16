@@ -18,6 +18,7 @@ import AdminProductos from './modules/productos';
 import AdminClientes from './modules/clientes';
 import CambiarPassword from './modules/cambiarPassword';
 import EditarPerfil from './modules/editarPerfil';
+import VentaPresencial from './modules/ventaPresencial';
 
 export default function AdminHome() {
   const { user, logout, isAdmin, isAuthenticated } = useAuth();
@@ -29,13 +30,23 @@ export default function AdminHome() {
   // Verificar permisos al cargar el componente
   useEffect(() => {
     const checkPermissions = () => {
-      console.log('🔍 Verificando permisos de acceso...');
-      console.log('Usuario:', user);
-      console.log('Autenticado:', isAuthenticated);
-      console.log('Es Admin:', isAdmin());
+      console.log('🔍 AdminHome - Verificando permisos de acceso...');
+      console.log('🔍 AdminHome - Usuario completo:', JSON.stringify(user, null, 2));
+      console.log('🔍 AdminHome - Autenticado:', isAuthenticated);
+      console.log('🔍 AdminHome - Es Admin (función):', isAdmin());
+      
+      // Verificación manual adicional
+      if (user) {
+        console.log('🔍 AdminHome - Verificación manual:');
+        console.log('   - user.rol:', user.rol);
+        console.log('   - user.es_super_admin:', user.es_super_admin);
+        console.log('   - rol === "administrador":', user.rol === 'administrador');
+        console.log('   - es_super_admin === true:', user.es_super_admin === true);
+        console.log('   - Ambas condiciones:', user.rol === 'administrador' && user.es_super_admin === true);
+      }
 
       if (!isAuthenticated) {
-        console.log('❌ No autenticado, redirigiendo a Perfil...');
+        console.log('❌ AdminHome - No autenticado, redirigiendo a Perfil...');
         Alert.alert(
           'Acceso Denegado',
           'Debes iniciar sesión para acceder al panel de administración',
@@ -45,16 +56,18 @@ export default function AdminHome() {
       }
 
       if (!isAdmin()) {
-        console.log('❌ No es administrador, redirigiendo a Inicio...');
+        console.log('❌ AdminHome - No es administrador, redirigiendo a Inicio...');
+        console.log('❌ AdminHome - Rol actual:', user?.rol);
+        console.log('❌ AdminHome - Es super admin:', user?.es_super_admin);
         Alert.alert(
           '🚫 Acceso Denegado',
-          'No tienes el nivel de administrador necesario para acceder a este panel.\n\nTu rol actual: ' + (user?.rol || 'cliente'),
+          `No tienes el nivel de administrador necesario para acceder a este panel.\n\nTu rol actual: ${user?.rol || 'cliente'}\nSuper Admin: ${user?.es_super_admin ? 'Sí' : 'No'}`,
           [{ text: 'Entendido', onPress: () => navigation.navigate('MainTabs', { screen: 'Inicio' }) }]
         );
         return;
       }
 
-      console.log('✅ Permisos verificados correctamente');
+      console.log('✅ AdminHome - Permisos verificados correctamente');
       setChecking(false);
     };
 
@@ -154,6 +167,25 @@ export default function AdminHome() {
                 </View>
               </TouchableOpacity>
 
+              {/* Punto de Venta - Solo para SuperAdmin */}
+              {user?.es_super_admin && (
+                <TouchableOpacity
+                  style={[styles.card, styles.cardPuntoVenta]}
+                  onPress={() => setActiveSection('puntoVenta')}
+                >
+                  <View style={styles.cardIcon}>
+                    <Ionicons name="storefront" size={40} color="#fff" />
+                  </View>
+                  <Text style={styles.cardTitle}>Punto de Venta</Text>
+                  <Text style={styles.cardDescription}>
+                    Ventas presenciales y comprobantes
+                  </Text>
+                  <View style={styles.cardArrow}>
+                    <Ionicons name="arrow-forward" size={24} color="#fff" />
+                  </View>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
                 style={[styles.card, styles.cardPassword]}
                 onPress={() => setActiveSection('password')}
@@ -224,6 +256,8 @@ export default function AdminHome() {
         return <AdminProductos />;
       case 'clientes':
         return <AdminClientes />;
+      case 'puntoVenta':
+        return <VentaPresencial />;
       case 'password':
         return <CambiarPassword />;
       case 'perfil':
@@ -270,6 +304,7 @@ export default function AdminHome() {
               {activeSection === 'pedidos' && 'Pedidos'}
               {activeSection === 'productos' && 'Productos'}
               {activeSection === 'clientes' && 'Clientes'}
+              {activeSection === 'puntoVenta' && 'Punto de Venta'}
               {activeSection === 'password' && 'Cambiar Contraseña'}
               {activeSection === 'perfil' && 'Editar Perfil'}
             </Text>
@@ -452,6 +487,9 @@ const styles = StyleSheet.create({
   },
   cardClientes: {
     backgroundColor: '#E91E63',
+  },
+  cardPuntoVenta: {
+    backgroundColor: '#00BCD4',
   },
   cardPassword: {
     backgroundColor: '#FF9800',

@@ -10,10 +10,11 @@ import {
   Alert,
   Modal,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../../components/context/authContext';
-import { getAllUsers, updateUser } from '../../../../components/services/store/users';
+import { getAllUsers, updateUser, createAdmin, promoteToAdmin, demoteAdmin } from '../../../../components/services/store/users';
 
 const AdminClientes = () => {
   const { user } = useAuth();
@@ -24,25 +25,46 @@ const AdminClientes = () => {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [nuevoRol, setNuevoRol] = useState('');
   const [esSuperAdmin, setEsSuperAdmin] = useState(false);
+  const [createAdminModalVisible, setCreateAdminModalVisible] = useState(false);
+  const [newAdminData, setNewAdminData] = useState({
+    nombre: '',
+    apellido: '',
+    correo: '',
+    telefono: '',
+    direccion: '',
+    usuario: '',
+    contrasena: '',
+    es_super_admin: false
+  });
 
   useEffect(() => {
     cargarClientes();
     // Verificar si el usuario actual es super admin
-    setEsSuperAdmin(user?.es_super_admin === true || user?.id_usuario === 1);
+    console.log('🔍 AdminClientes - Verificando permisos del usuario:', user);
+    console.log('🔍 AdminClientes - es_super_admin:', user?.es_super_admin);
+    setEsSuperAdmin(user?.es_super_admin === true);
   }, [user]);
 
   const cargarClientes = async () => {
     try {
       setLoading(true);
+      console.log('👥 AdminClientes - Cargando usuarios...');
+      console.log('👥 AdminClientes - Usuario actual:', user?.usuario);
+      console.log('👥 AdminClientes - Es super admin:', user?.es_super_admin);
+      
       const response = await getAllUsers();
+      console.log('📡 AdminClientes - Response:', response);
+      
       if (response.success) {
-        setClientes(response.users || []);
+        console.log('✅ AdminClientes - Usuarios cargados:', response.data?.users?.length || 0);
+        setClientes(response.data?.users || []);
       } else {
-        Alert.alert('Error', 'No se pudieron cargar los clientes');
+        console.error('❌ AdminClientes - Error en response:', response.message);
+        Alert.alert('Error', response.message || 'No se pudieron cargar los clientes');
       }
     } catch (error) {
-      console.error('Error cargando clientes:', error);
-      Alert.alert('Error', 'Error al cargar los clientes');
+      console.error('❌ AdminClientes - Error cargando clientes:', error);
+      Alert.alert('Error', 'Error al cargar los clientes: ' + error.message);
     } finally {
       setLoading(false);
     }

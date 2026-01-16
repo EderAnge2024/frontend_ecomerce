@@ -14,6 +14,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '../../../../components/context/authContext';
 import {
   getAllProductos,
@@ -54,12 +55,39 @@ const AdminProductos = () => {
     image: '',
     rating_rate: '',
     rating_count: '',
+    stock: '',
   });
+
+  // Estados para las categorías
+  const [categoriasExistentes, setCategoriasExistentes] = useState([]);
+  const [nuevaCategoria, setNuevaCategoria] = useState('');
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
 
   // Cargar productos al montar el componente
   useEffect(() => {
     cargarProductos();
+    cargarCategoriasExistentes();
   }, []);
+
+  // Cargar categorías existentes desde los productos
+  const cargarCategoriasExistentes = async () => {
+    try {
+      const response = await getAllProductos();
+      if (response.success) {
+        // Extraer categorías únicas de todos los productos
+        const categorias = [...new Set(
+          response.productos
+            .map(producto => producto.category)
+            .filter(categoria => categoria && categoria.trim() !== '')
+        )].sort();
+        
+        setCategoriasExistentes(categorias);
+        console.log('✅ Categorías cargadas:', categorias);
+      }
+    } catch (error) {
+      console.error('Error cargando categorías:', error);
+    }
+  };
 
   // Obtener productos del admin desde la API
   const cargarProductos = async () => {
@@ -100,7 +128,10 @@ const AdminProductos = () => {
       image: '',
       rating_rate: '',
       rating_count: '',
+      stock: '',
     });
+    setNuevaCategoria('');
+    setCategoriaSeleccionada('');
     setModalVisible(true);
   };
 
@@ -115,7 +146,19 @@ const AdminProductos = () => {
       image: producto.image || '',
       rating_rate: producto.rating_rate?.toString() || '',
       rating_count: producto.rating_count?.toString() || '',
+      stock: producto.stock?.toString() || '0',
     });
+    
+    // Si la categoría del producto existe en las categorías existentes, seleccionarla
+    if (producto.category && categoriasExistentes.includes(producto.category)) {
+      setCategoriaSeleccionada(producto.category);
+      setNuevaCategoria('');
+    } else {
+      // Si no existe, ponerla como nueva categoría
+      setNuevaCategoria(producto.category || '');
+      setCategoriaSeleccionada('');
+    }
+    
     setModalVisible(true);
   };
 
@@ -131,16 +174,28 @@ const AdminProductos = () => {
       return;
     }
 
+    // Validar categoría: nueva categoría tiene prioridad, sino usar la seleccionada
+    let categoriaFinal = '';
+    if (nuevaCategoria.trim()) {
+      categoriaFinal = nuevaCategoria.trim();
+    } else if (categoriaSeleccionada.trim()) {
+      categoriaFinal = categoriaSeleccionada.trim();
+    } else {
+      Alert.alert('Error', 'Debe ingresar una nueva categoría o seleccionar una existente');
+      return;
+    }
+
     try {
       const productoData = {
         id_usuario: user.id_usuario,
         title: formData.title,
         price: parseFloat(formData.price),
         description: formData.description,
-        category: formData.category,
+        category: categoriaFinal,
         image: formData.image,
         rating_rate: formData.rating_rate ? parseFloat(formData.rating_rate) : null,
         rating_count: formData.rating_count ? parseInt(formData.rating_count) : null,
+        stock: formData.stock ? parseInt(formData.stock) : 0,
       };
 
       let response;
@@ -157,6 +212,8 @@ const AdminProductos = () => {
         );
         cerrarModal();
         cargarProductos();
+        // Recargar categorías para incluir la nueva si se agregó
+        cargarCategoriasExistentes();
       } else {
         Alert.alert('Error', response.message || 'No se pudo guardar el producto');
       }
@@ -177,16 +234,35 @@ const AdminProductos = () => {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('🗑️ Intentando eliminar producto:', producto.id_producto);
+              console.log('👤 Usuario actual:', user?.rol, user?.es_super_admin);
+              
               const response = await deleteProducto(producto.id_producto);
+              console.log('📡 Respuesta del servidor:', response);
+              
               if (response.success) {
                 Alert.alert('Éxito', 'Producto eliminado correctamente');
                 cargarProductos();
               } else {
+                console.error('❌ Error del servidor:', response.message);
                 Alert.alert('Error', response.message || 'No se pudo eliminar el producto');
               }
             } catch (error) {
-              console.error('Error eliminando producto:', error);
-              Alert.alert('Error', 'Error al eliminar el producto');
+              console.error('❌ Error eliminando producto:', error);
+              
+              // Mostrar error más específico
+              let errorMessage = 'Error al eliminar el producto';
+              if (error.message.includes('403')) {
+                errorMessage = 'No tienes permisos para eliminar este producto';
+              } else if (error.message.includes('401')) {
+                errorMessage = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente';
+              } else if (error.message.includes('404')) {
+                errorMessage = 'El producto no fue encontrado';
+              } else if (error.message.includes('Token')) {
+                errorMessage = 'Error de autenticación. Inicia sesión nuevamente';
+              }
+              
+              Alert.alert('Error', errorMessage);
             }
           },
         },
@@ -207,6 +283,12 @@ const AdminProductos = () => {
         {item.category && (
           <Text style={styles.productoCategoria}>{item.category}</Text>
         )}
+        <View style={styles.stockContainer}>
+          <Text style={styles.stockLabel}>Stock: </Text>
+          <Text style={[styles.stockValue, item.stock <= 5 ? styles.stockBajo : styles.stockNormal]}>
+            {item.stock || 0} unidades
+          </Text>
+        </View>
         {item.rating_rate && (
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={14} color="#FFA500" />
@@ -322,13 +404,61 @@ const AdminProductos = () => {
                 numberOfLines={4}
               />
 
-              <Text style={styles.label}>Categoría</Text>
+              <Text style={styles.label}>Nueva Categoría</Text>
               <TextInput
                 style={styles.input}
-                value={formData.category}
-                onChangeText={(text) => setFormData({ ...formData, category: text })}
-                placeholder="electronics, clothing, etc."
+                value={nuevaCategoria}
+                onChangeText={(text) => {
+                  setNuevaCategoria(text);
+                  // Si se escribe una nueva categoría, limpiar la selección
+                  if (text.trim()) {
+                    setCategoriaSeleccionada('');
+                  }
+                }}
+                placeholder="Ingresa una nueva categoría"
               />
+
+              <Text style={styles.label}>O Seleccionar Categoría Existente</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={categoriaSeleccionada}
+                  style={styles.picker}
+                  onValueChange={(itemValue) => {
+                    setCategoriaSeleccionada(itemValue);
+                    // Si se selecciona una categoría existente, limpiar la nueva
+                    if (itemValue) {
+                      setNuevaCategoria('');
+                    }
+                  }}
+                >
+                  <Picker.Item label="Seleccionar categoría..." value="" />
+                  {categoriasExistentes.map((categoria, index) => (
+                    <Picker.Item 
+                      key={index} 
+                      label={categoria} 
+                      value={categoria} 
+                    />
+                  ))}
+                </Picker>
+              </View>
+
+              {/* Indicador visual de qué categoría se usará */}
+              {(nuevaCategoria.trim() || categoriaSeleccionada) && (
+                <View style={styles.categoriaPreview}>
+                  <Ionicons 
+                    name="pricetag" 
+                    size={16} 
+                    color={nuevaCategoria.trim() ? "#4CAF50" : "#2196F3"} 
+                  />
+                  <Text style={[
+                    styles.categoriaPreviewText,
+                    { color: nuevaCategoria.trim() ? "#4CAF50" : "#2196F3" }
+                  ]}>
+                    Categoría: {nuevaCategoria.trim() || categoriaSeleccionada}
+                    {nuevaCategoria.trim() && " (Nueva)"}
+                  </Text>
+                </View>
+              )}
 
               <Text style={styles.label}>URL de Imagen</Text>
               <TextInput
@@ -353,6 +483,15 @@ const AdminProductos = () => {
                 value={formData.rating_count}
                 onChangeText={(text) => setFormData({ ...formData, rating_count: text })}
                 placeholder="120"
+                keyboardType="number-pad"
+              />
+
+              <Text style={styles.label}>Stock *</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.stock}
+                onChangeText={(text) => setFormData({ ...formData, stock: text })}
+                placeholder="100"
                 keyboardType="number-pad"
               />
             </ScrollView>
@@ -494,6 +633,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
+  stockContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  stockLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  stockValue: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  stockNormal: {
+    color: '#4CAF50',
+  },
+  stockBajo: {
+    color: '#FF5722',
+  },
   productoAcciones: {
     justifyContent: 'center',
     gap: 8,
@@ -577,6 +736,30 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  categoriaPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f8ff',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  categoriaPreviewText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   modalFooter: {
     flexDirection: 'row',

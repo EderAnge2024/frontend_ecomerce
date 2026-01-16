@@ -18,6 +18,8 @@ import { useRouter } from 'expo-router';
 import Register from './Register';
 import RecuperarPassword from './RecuperarPassword';
 import AdminHome from '../modules/admin/AdminHome';
+import InputValidator from '../../components/security/InputValidator';
+import SecureLogger from '../../components/security/SecureLogger';
 
 const Login = ({ onSuccess, onForgotPassword, onRegister }) => {
   const [usuario, setUsuario] = useState('');
@@ -31,33 +33,63 @@ const Login = ({ onSuccess, onForgotPassword, onRegister }) => {
   const router = useRouter();
 
   const handleLogin = async () => {
+    console.log('🔐 handleLogin iniciado');
+    console.log('   Usuario:', usuario);
+    console.log('   Password length:', password?.length);
+    
+    // Validación básica
     if (!usuario || !password) {
-      alert('Por favor completa todos los campos');
+      console.log('❌ Campos vacíos');
+      Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
+
+    // Validar datos de entrada con InputValidator
+    console.log('🔍 Validando con InputValidator...');
+    const loginValidation = InputValidator.validateLoginData({
+      usuario: usuario,
+      contrasena: password
+    });
+
+    console.log('🔍 Resultado validación:', loginValidation);
+
+    if (!loginValidation.isValid) {
+      console.log('❌ Validación falló:', loginValidation.errors);
+      Alert.alert('Error de validación', loginValidation.errors.join('\n'));
       return;
     }
 
     try {
       setLoading(true);
-      const response = await login(usuario, password);
+      console.log('🚀 Iniciando login...');
+      
+      const response = await login(loginValidation.sanitized.usuario, password);
+      
+      console.log('📋 Respuesta login:', JSON.stringify(response, null, 2));
       
       if (response.success) {
-        // Verificar si el usuario es administrador
-        if (isAdmin()) {
-          console.log('✅ Usuario administrador detectado, mostrando panel admin');
-          setShowAdminPanel(true);
-        } else {
-          // Si hay callback onSuccess (cuando se usa en modal), ejecutarlo
-          if (onSuccess) {
+        console.log('✅ Login exitoso');
+        
+        // Mostrar mensaje de éxito
+        Alert.alert('Éxito', 'Inicio de sesión exitoso');
+        
+        // Siempre ejecutar el callback para que PerfilScreen se actualice
+        console.log('🔄 Ejecutando callback para actualizar PerfilScreen');
+        
+        if (onSuccess) {
+          console.log('🔄 Ejecutando onSuccess callback');
+          // Dar tiempo para que el AuthContext se actualice completamente
+          setTimeout(() => {
             onSuccess();
-          }
-          // No navegar aquí - el componente padre maneja la navegación
+          }, 200);
         }
       } else {
-        alert(response.message || 'Usuario o contraseña incorrectos');
+        console.log('❌ Login falló:', response.message);
+        Alert.alert('Error de autenticación', response.message || 'Usuario o contraseña incorrectos');
       }
     } catch (error) {
-      console.error('Error en login:', error);
-      alert('Ocurrió un error al iniciar sesión');
+      console.error('💥 Error en login:', error);
+      Alert.alert('Error', 'Ocurrió un error al iniciar sesión: ' + error.message);
     } finally {
       setLoading(false);
     }
