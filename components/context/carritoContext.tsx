@@ -22,6 +22,7 @@ interface CartContextProps {
   finalizarCompraMultiVendedor: (id_usuario: number, id_ubicacion?: number) => Promise<{ success: boolean; message: string; resultado?: any }>;
   calcularTotal: () => number;
   cantidadProductos: () => number;
+  cargando: boolean;
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined);
@@ -29,15 +30,22 @@ const CartContext = createContext<CartContextProps | undefined>(undefined);
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   // Lista de productos en el carrito
   const [carrito, setCarrito] = useState<Producto[]>([]);
+  const [cargando, setCargando] = useState(true);
 
   // Cargar carrito desde AsyncStorage al iniciar la app
   useEffect(() => {
     const cargarCarrito = async () => {
       try {
         const jsonValue = await AsyncStorage.getItem("@carrito");
-        if (jsonValue) setCarrito(JSON.parse(jsonValue));
+        if (jsonValue) {
+          const cartData = JSON.parse(jsonValue);
+          console.log("🛒 Carrito cargado de storage:", cartData.length, "productos");
+          setCarrito(cartData);
+        }
       } catch (e) {
         console.error("Error al cargar carrito:", e);
+      } finally {
+        setCargando(false);
       }
     };
     cargarCarrito();
@@ -45,6 +53,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Guardar carrito en AsyncStorage cada vez que cambia
   useEffect(() => {
+    // Evitar guardar si aún está cargando para no sobrescribir con array vacío
+    if (cargando) return;
+
     const guardarCarrito = async () => {
       try {
         await AsyncStorage.setItem("@carrito", JSON.stringify(carrito));
@@ -53,35 +64,42 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     guardarCarrito();
-  }, [carrito]);
+  }, [carrito, cargando]);
+
+  // Normalizar ID para comparaciones seguras
+  const normalizeId = (id: number | string) => String(id);
 
   // Agregar producto al carrito (o incrementar cantidad si ya existe)
   const agregarAlCarrito = (producto: Producto) => {
     setCarrito((prev) => {
-      // Buscar si el producto ya está en el carrito
-      const existente = prev.find((p) => p.id === producto.id);
+      // Buscar si el producto ya está en el carrito usando IDs normalizados
+      const existente = prev.find((p) => normalizeId(p.id) === normalizeId(producto.id));
+
       if (existente) {
+        console.log("➕ Incrementando cantidad de producto existente:", producto.id);
         // Incrementar cantidad del producto existente
         return prev.map((p) =>
-          p.id === producto.id
+          normalizeId(p.id) === normalizeId(producto.id)
             ? { ...p, cantidad: (p.cantidad || 1) + 1 }
             : p
         );
       }
+
+      console.log("🆕 Agregando nuevo producto al carrito:", producto.id);
       // Si no existe, agregarlo con cantidad 1
       return [...prev, { ...producto, cantidad: 1 }];
     });
   };
 
   const eliminarDelCarrito = (id: number) => {
-    setCarrito((prev) => prev.filter((p) => p.id !== id));
+    setCarrito((prev) => prev.filter((p) => normalizeId(p.id) !== normalizeId(id)));
   };
 
   // Incrementar cantidad de un producto específico
   const incrementarCantidad = (id: number) => {
     setCarrito((prev) =>
       prev.map((p) =>
-        p.id === id
+        normalizeId(p.id) === normalizeId(id)
           ? { ...p, cantidad: (p.cantidad || 1) + 1 }
           : p
       )
@@ -92,7 +110,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const decrementarCantidad = (id: number) => {
     setCarrito((prev) =>
       prev.map((p) => {
-        if (p.id === id) {
+        if (normalizeId(p.id) === normalizeId(id)) {
           const nuevaCantidad = (p.cantidad || 1) - 1;
           return nuevaCantidad <= 0 ? null : { ...p, cantidad: nuevaCantidad };
         }
@@ -171,10 +189,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return { success: false, message: 'El carrito está vacío' };
       }
 
-      console.log('🛒 Finalizando compra multi-vendedor:', { 
-        id_usuario, 
-        productos: carrito.length, 
-        id_ubicacion 
+      console.log('🛒 Finalizando compra multi-vendedor:', {
+        id_usuario,
+        productos: carrito.length,
+        id_ubicacion
       });
 
       // Procesar compra con división automática por vendedor
@@ -217,6 +235,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         finalizarCompraMultiVendedor,
         calcularTotal,
         cantidadProductos,
+        cargando,
       }}
     >
       {children}

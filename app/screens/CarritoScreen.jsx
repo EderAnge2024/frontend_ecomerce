@@ -9,7 +9,7 @@ import { getUbicacionesByUser } from "@/components/services/store/ubicaciones";
 
 
 export default function CarritoScreen() {
-  const { carrito, eliminarDelCarrito, incrementarCantidad, decrementarCantidad, limpiarCarrito, finalizarCompraMultiVendedor, previewDivision, calcularTotal, cantidadProductos } = useCart();
+  const { carrito, eliminarDelCarrito, incrementarCantidad, decrementarCantidad, limpiarCarrito, finalizarCompraMultiVendedor, previewDivision, calcularTotal, cantidadProductos, cargando } = useCart();
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function CarritoScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  
+
   // Estados para ubicaciones
   const [ubicaciones, setUbicaciones] = useState([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
@@ -148,7 +148,12 @@ export default function CarritoScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {carrito.length === 0 ? (
+      {cargando ? (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color="#221329" />
+          <Text style={styles.emptyText}>Cargando carrito...</Text>
+        </View>
+      ) : carrito.length === 0 ? (
         <>
           <View style={styles.header}>
             <Ionicons name="cart" size={32} color="#221329" />
@@ -172,7 +177,7 @@ export default function CarritoScreen() {
           </View>
 
           {/* ScrollView con productos */}
-          <ScrollView 
+          <ScrollView
             style={styles.scrollContainer}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={true}
@@ -181,7 +186,7 @@ export default function CarritoScreen() {
               <View key={item.id.toString()} style={styles.item}>
                 {/* Imagen del producto */}
                 {item.imagen && item.imagen.trim() !== '' && (
-                  <Image 
+                  <Image
                     source={{ uri: item.imagen || 'https://via.placeholder.com/50x60?text=No+Image' }}
                     style={{
                       width: 50,
@@ -194,7 +199,7 @@ export default function CarritoScreen() {
                     onError={() => console.log('Error loading image:', item.imagen)}
                   />
                 )}
-                
+
                 <View style={styles.itemInfo}>
                   <Text style={styles.name} numberOfLines={2}>{item.nombre}</Text>
                   <View style={styles.priceRow}>
@@ -223,10 +228,10 @@ export default function CarritoScreen() {
                 <View style={styles.ubicacionHeader}>
                   <Ionicons name="location" size={18} color="#221329" />
                   <Text style={styles.ubicacionTitle}>Cargando direcciones...</Text>
-                  <ActivityIndicator size="small" color="#221329" style={{marginLeft: 8}} />
+                  <ActivityIndicator size="small" color="#221329" style={{ marginLeft: 8 }} />
                 </View>
               ) : ubicaciones.length === 0 ? (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.agregarUbicacionButtonCompact}
                   onPress={() => router.push('/modules/perfil/perfil')}
                 >
@@ -240,10 +245,10 @@ export default function CarritoScreen() {
                     <Ionicons name="location" size={18} color="#221329" />
                     <Text style={styles.envioLabel}>Envío a:</Text>
                   </View>
-                  
+
                   <View style={styles.envioUbicacionContainer}>
                     {ubicaciones.find(u => u.id_ubicacion === ubicacionSeleccionada) ? (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.ubicacionSeleccionadaDisplay}
                         onPress={() => {
                           // Aquí podrías abrir un modal para cambiar ubicación si quieres
@@ -272,8 +277,8 @@ export default function CarritoScreen() {
             </View>
 
             <View style={styles.buttonsContainer}>
-              <TouchableOpacity 
-                style={styles.clearButton} 
+              <TouchableOpacity
+                style={styles.clearButton}
                 onPress={limpiarCarrito}
                 disabled={loading}
               >
@@ -281,8 +286,8 @@ export default function CarritoScreen() {
                 <Text style={styles.clearText}>Vaciar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.checkoutButton, loading && styles.buttonDisabled]} 
+              <TouchableOpacity
+                style={[styles.checkoutButton, loading && styles.buttonDisabled]}
                 onPress={handleFinalizarCompra}
                 disabled={loading}
               >
@@ -307,12 +312,12 @@ export default function CarritoScreen() {
         visible={modalVisible}
         onRequestClose={handleCancelarModal}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={handleCancelarModal}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.modalContent}
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
@@ -332,7 +337,7 @@ export default function CarritoScreen() {
                 {carrito.map((item) => (
                   <View key={item.id.toString()} style={styles.productoModalItem}>
                     {item.imagen && item.imagen.trim() !== '' && (
-                      <Image 
+                      <Image
                         source={{ uri: item.imagen || 'https://via.placeholder.com/40x40?text=No+Image' }}
                         style={{
                           width: 40,
@@ -353,7 +358,7 @@ export default function CarritoScreen() {
                         S/ {item.precio.toFixed(2)} c/u
                       </Text>
                     </View>
-                    
+
                     {/* Controles de cantidad */}
                     <View style={styles.cantidadControls}>
                       <TouchableOpacity
@@ -363,11 +368,11 @@ export default function CarritoScreen() {
                       >
                         <Ionicons name="remove" size={16} color="#221329" />
                       </TouchableOpacity>
-                      
+
                       <Text style={styles.cantidadText}>
                         {item.cantidad || 1}
                       </Text>
-                      
+
                       <TouchableOpacity
                         style={styles.cantidadButton}
                         onPress={() => incrementarCantidad(item.id)}
@@ -376,7 +381,7 @@ export default function CarritoScreen() {
                         <Ionicons name="add" size={16} color="#221329" />
                       </TouchableOpacity>
                     </View>
-                    
+
                     <Text style={styles.productoModalSubtotal}>
                       S/ {(item.precio * (item.cantidad || 1)).toFixed(2)}
                     </Text>
